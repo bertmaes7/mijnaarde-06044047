@@ -15,7 +15,20 @@ interface AuthContextType {
   signOut: () => Promise<{ error: Error | null }>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  session: null,
+  isLoading: true,
+  roles: [],
+  isAdmin: false,
+  memberId: null,
+  signInWithPassword: async () => ({ error: null }),
+  signInWithMagicLink: async () => ({ error: null }),
+  signUp: async () => ({ error: null }),
+  signOut: async () => ({ error: null }),
+};
+
+const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
@@ -24,9 +37,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuthContext() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuthContext must be used within an AuthProvider");
-  }
-  return context;
+  return useContext(AuthContext);
 }

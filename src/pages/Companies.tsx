@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { useCompanies, useCreateCompany } from "@/hooks/useCompanies";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,6 +36,8 @@ import {
   CreditCard,
   FileText,
   Hash,
+  Truck,
+  Pencil,
 } from "lucide-react";
 import { WebsitePreview } from "@/components/members/WebsitePreview";
 
@@ -48,6 +53,7 @@ const companySchema = z.object({
   bank_account: z.string().optional(),
   enterprise_number: z.string().optional(),
   vat_number: z.string().optional(),
+  is_supplier: z.boolean(),
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -72,6 +78,7 @@ export default function Companies() {
       bank_account: "",
       enterprise_number: "",
       vat_number: "",
+      is_supplier: false,
     },
   });
 
@@ -92,6 +99,7 @@ export default function Companies() {
       bank_account: data.bank_account || null,
       enterprise_number: data.enterprise_number || null,
       vat_number: data.vat_number || null,
+      is_supplier: data.is_supplier,
     });
     form.reset();
     setIsDialogOpen(false);
@@ -195,6 +203,24 @@ export default function Companies() {
                       <WebsitePreview url={websiteUrl} />
                     </div>
                   </div>
+                  <FormField
+                    control={form.control}
+                    name="is_supplier"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                        <FormLabel className="cursor-pointer flex items-center gap-2">
+                          <Truck className="h-4 w-4" />
+                          Leverancier
+                        </FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
                   <div className="grid gap-4 sm:grid-cols-3">
                     <FormField
                       control={form.control}
@@ -332,23 +358,27 @@ export default function Companies() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredCompanies.map((company) => (
-              <Card key={company.id} className="card-elevated">
+              <Card key={company.id} className="card-elevated group relative">
+                <Link to={`/companies/${company.id}`} className="absolute inset-0 z-10" />
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Building2 className="h-5 w-5 text-primary" />
-                    {company.name}
+                    <span className="group-hover:text-primary transition-colors">
+                      {company.name}
+                    </span>
+                    {company.is_supplier && (
+                      <Badge variant="secondary" className="ml-auto gap-1">
+                        <Truck className="h-3 w-3" />
+                        Leverancier
+                      </Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   {company.email && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Mail className="h-4 w-4" />
-                      <a
-                        href={`mailto:${company.email}`}
-                        className="hover:text-primary"
-                      >
-                        {company.email}
-                      </a>
+                      {company.email}
                     </div>
                   )}
                   {company.phone && (
@@ -360,14 +390,7 @@ export default function Companies() {
                   {company.website && (
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Globe className="h-4 w-4" />
-                      <a
-                        href={company.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-primary"
-                      >
-                        {company.website.replace(/^https?:\/\//, "")}
-                      </a>
+                      {company.website.replace(/^https?:\/\//, "")}
                     </div>
                   )}
                   {(company.address || company.city) && (
@@ -398,11 +421,14 @@ export default function Companies() {
                       <span>{company.bank_account}</span>
                     </div>
                   )}
-                  {company.website && (
-                    <div className="mt-3 pt-3 border-t">
-                      <WebsitePreview url={company.website} />
-                    </div>
-                  )}
+                  <div className="pt-2 flex justify-end relative z-20">
+                    <Button asChild variant="ghost" size="sm" className="gap-1">
+                      <Link to={`/companies/${company.id}`}>
+                        <Pencil className="h-4 w-4" />
+                        Bewerken
+                      </Link>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}

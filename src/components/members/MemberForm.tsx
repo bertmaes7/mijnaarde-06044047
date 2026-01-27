@@ -26,6 +26,8 @@ import { Member } from "@/lib/supabase";
 import { useCompanies } from "@/hooks/useCompanies";
 import { MemberAvatar } from "./MemberAvatar";
 import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
+import { SocialMediaFields } from "./SocialMediaFields";
+import { WebsitePreview } from "./WebsitePreview";
 import { Save, User, Building2, MapPin, Globe } from "lucide-react";
 
 const memberSchema = z.object({
@@ -43,6 +45,10 @@ const memberSchema = z.object({
   notes: z.string().optional(),
   is_active: z.boolean(),
   profile_photo_url: z.string().optional(),
+  facebook_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
+  linkedin_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
+  instagram_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
+  tiktok_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -74,6 +80,10 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
       notes: member?.notes || "",
       is_active: member?.is_active ?? true,
       profile_photo_url: member?.profile_photo_url || "",
+      facebook_url: member?.facebook_url || "",
+      linkedin_url: member?.linkedin_url || "",
+      instagram_url: member?.instagram_url || "",
+      tiktok_url: member?.tiktok_url || "",
     },
   });
 
@@ -94,6 +104,10 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
         notes: member.notes || "",
         is_active: member.is_active ?? true,
         profile_photo_url: member.profile_photo_url || "",
+        facebook_url: member.facebook_url || "",
+        linkedin_url: member.linkedin_url || "",
+        instagram_url: member.instagram_url || "",
+        tiktok_url: member.tiktok_url || "",
       });
       setPhotoUrl(member.profile_photo_url);
     }
@@ -113,6 +127,7 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
 
   const firstName = form.watch("first_name");
   const lastName = form.watch("last_name");
+  const personalUrl = form.watch("personal_url");
 
   return (
     <Form {...form}>
@@ -356,6 +371,16 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
               />
             </CardContent>
           </Card>
+
+          {/* Social Media */}
+          <div className="lg:col-span-2">
+            <SocialMediaFields control={form.control} />
+          </div>
+
+          {/* Website Preview */}
+          <div className="lg:col-span-1">
+            <WebsitePreview url={personalUrl} />
+          </div>
 
           {/* Notes */}
           <Card className="lg:col-span-3 card-elevated">

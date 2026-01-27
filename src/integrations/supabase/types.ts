@@ -64,16 +64,20 @@ export type Database = {
           country: string | null
           created_at: string | null
           email: string | null
+          facebook_url: string | null
           first_name: string
           id: string
+          instagram_url: string | null
           is_active: boolean | null
           last_name: string
+          linkedin_url: string | null
           mobile: string | null
           notes: string | null
           personal_url: string | null
           phone: string | null
           postal_code: string | null
           profile_photo_url: string | null
+          tiktok_url: string | null
           updated_at: string | null
         }
         Insert: {
@@ -83,16 +87,20 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           email?: string | null
+          facebook_url?: string | null
           first_name: string
           id?: string
+          instagram_url?: string | null
           is_active?: boolean | null
           last_name: string
+          linkedin_url?: string | null
           mobile?: string | null
           notes?: string | null
           personal_url?: string | null
           phone?: string | null
           postal_code?: string | null
           profile_photo_url?: string | null
+          tiktok_url?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -102,16 +110,20 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           email?: string | null
+          facebook_url?: string | null
           first_name?: string
           id?: string
+          instagram_url?: string | null
           is_active?: boolean | null
           last_name?: string
+          linkedin_url?: string | null
           mobile?: string | null
           notes?: string | null
           personal_url?: string | null
           phone?: string | null
           postal_code?: string | null
           profile_photo_url?: string | null
+          tiktok_url?: string | null
           updated_at?: string | null
         }
         Relationships: [

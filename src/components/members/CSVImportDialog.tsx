@@ -128,6 +128,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
             linkedin_url: member.linkedin_url || null,
             instagram_url: member.instagram_url || null,
             tiktok_url: member.tiktok_url || null,
+            bank_account: member.bank_account || null,
             member_since: member.member_since || null,
             receives_mail: member.receives_mail,
             is_board_member: member.is_board_member,

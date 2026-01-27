@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Save, Image, Building2, FileText } from "lucide-react";
 import {
   useMailingAssets,
@@ -13,6 +12,7 @@ import {
   useCreateMailingAsset,
   useDeleteMailingAsset,
 } from "@/hooks/useMailing";
+import { LogoUpload } from "@/components/mailing/LogoUpload";
 import {
   Dialog,
   DialogContent,
@@ -105,14 +105,6 @@ export default function MailingAssets() {
             <CardContent className="space-y-4">
               {logoAsset && (
                 <>
-                  <div className="space-y-2">
-                    <Label>Logo URL</Label>
-                    <Input
-                      value={editedValues[logoAsset.id] ?? logoAsset.value}
-                      onChange={(e) => handleValueChange(logoAsset.id, e.target.value)}
-                      placeholder="https://..."
-                    />
-                  </div>
                   {(editedValues[logoAsset.id] ?? logoAsset.value) && (
                     <div className="p-4 bg-muted rounded-lg">
                       <img
@@ -125,13 +117,30 @@ export default function MailingAssets() {
                       />
                     </div>
                   )}
-                  <Button
-                    onClick={() => handleSave(logoAsset.id)}
-                    disabled={editedValues[logoAsset.id] === undefined || updateAsset.isPending}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Opslaan
-                  </Button>
+                  <LogoUpload
+                    onUpload={(url) => {
+                      handleValueChange(logoAsset.id, url);
+                      // Auto-save after upload
+                      updateAsset.mutate({ id: logoAsset.id, value: url });
+                    }}
+                  />
+                  <div className="space-y-2">
+                    <Label className="text-sm text-muted-foreground">Of voer een URL in</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={editedValues[logoAsset.id] ?? logoAsset.value}
+                        onChange={(e) => handleValueChange(logoAsset.id, e.target.value)}
+                        placeholder="https://..."
+                      />
+                      <Button
+                        size="icon"
+                        onClick={() => handleSave(logoAsset.id)}
+                        disabled={editedValues[logoAsset.id] === undefined || updateAsset.isPending}
+                      >
+                        <Save className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </>
               )}
             </CardContent>

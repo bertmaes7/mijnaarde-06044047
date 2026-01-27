@@ -56,7 +56,14 @@ function escapeCSVValue(value: string | null | undefined): string {
   return stringValue;
 }
 
-function parseCSVLine(line: string): string[] {
+function detectDelimiter(line: string): string {
+  // Count occurrences of common delimiters
+  const commaCount = (line.match(/,/g) || []).length;
+  const semicolonCount = (line.match(/;/g) || []).length;
+  return semicolonCount > commaCount ? ";" : ",";
+}
+
+function parseCSVLine(line: string, delimiter: string = ","): string[] {
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
@@ -77,7 +84,7 @@ function parseCSVLine(line: string): string[] {
     } else {
       if (char === '"') {
         inQuotes = true;
-      } else if (char === ",") {
+      } else if (char === delimiter) {
         result.push(current.trim());
         current = "";
       } else {
@@ -87,6 +94,31 @@ function parseCSVLine(line: string): string[] {
   }
   result.push(current.trim());
   return result;
+}
+
+function parseBoolean(val: string, defaultVal: boolean = true): boolean {
+  const lower = val.toLowerCase().trim();
+  if (lower === "" || lower === "ja" || lower === "true" || lower === "1" || lower === "waar") return true;
+  if (lower === "nee" || lower === "false" || lower === "0" || lower === "onwaar") return false;
+  return defaultVal;
+}
+
+function parseDateValue(val: string): string | undefined {
+  if (!val) return undefined;
+  
+  // Try DD/MM/YYYY format
+  const ddmmyyyy = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  // Already in YYYY-MM-DD format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    return val;
+  }
+  
+  return val;
 }
 
 export function exportMembersToCSV(members: Member[]): string {
@@ -184,7 +216,9 @@ export function parseCSV(csvContent: string, companies: Company[]): CSVParseResu
     return { members, errors };
   }
   
-  const headers = parseCSVLine(lines[0]);
+  // Auto-detect delimiter from first line
+  const delimiter = detectDelimiter(lines[0]);
+  const headers = parseCSVLine(lines[0], delimiter);
   
   // Validate required headers
   const requiredHeaders = ["Voornaam", "Achternaam"];
@@ -200,7 +234,7 @@ export function parseCSV(csvContent: string, companies: Company[]): CSVParseResu
   
   // Parse data rows
   for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i]);
+    const values = parseCSVLine(lines[i], delimiter);
     const rowNum = i + 1;
     
     try {
@@ -218,15 +252,7 @@ export function parseCSV(csvContent: string, companies: Company[]): CSVParseResu
       }
       
       const companyName = getValue("Bedrijf").trim();
-      const isActiveValue = getValue("Actief").toLowerCase();
-      const isActive = isActiveValue === "" || isActiveValue === "ja" || isActiveValue === "true" || isActiveValue === "1";
-      
-      const parseBoolean = (val: string, defaultVal: boolean = true): boolean => {
-        const lower = val.toLowerCase();
-        if (lower === "" || lower === "ja" || lower === "true" || lower === "1") return defaultVal;
-        if (lower === "nee" || lower === "false" || lower === "0") return false;
-        return defaultVal;
-      };
+      const isActive = parseBoolean(getValue("Actief"), true);
 
       members.push({
         first_name: firstName,
@@ -243,7 +269,7 @@ export function parseCSV(csvContent: string, companies: Company[]): CSVParseResu
         linkedin_url: getValue("LinkedIn") || undefined,
         instagram_url: getValue("Instagram") || undefined,
         tiktok_url: getValue("TikTok") || undefined,
-        member_since: getValue("Lid sinds") || undefined,
+        member_since: parseDateValue(getValue("Lid sinds")),
         receives_mail: parseBoolean(getValue("Ontvangt mail"), true),
         is_board_member: parseBoolean(getValue("Bestuur"), false),
         is_active_member: parseBoolean(getValue("Actief lid"), true),

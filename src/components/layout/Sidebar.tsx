@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, Building2, LayoutDashboard, Leaf, Wallet, TrendingUp, TrendingDown, FileText, LogOut } from "lucide-react";
+import { Users, Building2, LayoutDashboard, Leaf, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, Settings, FileCode, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -22,6 +22,12 @@ const financeSubItems = [
   { href: "/finance/income", label: "Inkomsten", icon: TrendingUp },
   { href: "/finance/expenses", label: "Uitgaven", icon: TrendingDown },
   { href: "/finance/invoices", label: "Uitgaande Facturen", icon: FileText },
+];
+
+const mailingSubItems = [
+  { href: "/mailing/assets", label: "Assets & Gegevens", icon: Settings },
+  { href: "/mailing/templates", label: "Templates", icon: FileCode },
+  { href: "/mailing", label: "Mailings", icon: Send },
 ];
 
 export function Sidebar() {
@@ -73,6 +79,9 @@ export function Sidebar() {
 
           {/* Finance Section */}
           <FinanceNav location={location} />
+          
+          {/* Mailing Section */}
+          <MailingNav location={location} />
         </nav>
 
         {/* User & Footer */}
@@ -129,6 +138,55 @@ function FinanceNav({ location }: { location: ReturnType<typeof useLocation> }) 
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-1 pt-1 pl-4">
         {financeSubItems.map((item) => {
+          const isActive = location.pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              to={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent"
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function MailingNav({ location }: { location: ReturnType<typeof useLocation> }) {
+  const isMailingActive = location.pathname.startsWith("/mailing");
+  const [isOpen, setIsOpen] = useState(isMailingActive);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger
+        className={cn(
+          "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          isMailingActive
+            ? "bg-primary/10 text-primary"
+            : "text-sidebar-foreground hover:bg-sidebar-accent"
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <Mail className="h-5 w-5" />
+          Mailing
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 transition-transform duration-200",
+            isOpen && "rotate-180"
+          )}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-1 pt-1 pl-4">
+        {mailingSubItems.map((item) => {
           const isActive = location.pathname === item.href;
           return (
             <Link

@@ -182,6 +182,113 @@ export type Database = {
           },
         ]
       }
+      mailing_assets: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          label: string
+          type: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          label: string
+          type: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          label?: string
+          type?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      mailing_templates: {
+        Row: {
+          created_at: string
+          html_content: string
+          id: string
+          name: string
+          subject: string
+          text_content: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          html_content: string
+          id?: string
+          name: string
+          subject: string
+          text_content?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          html_content?: string
+          id?: string
+          name?: string
+          subject?: string
+          text_content?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mailings: {
+        Row: {
+          created_at: string
+          id: string
+          scheduled_at: string | null
+          selected_member_ids: string[] | null
+          selection_type: string
+          sent_at: string | null
+          status: string
+          template_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          scheduled_at?: string | null
+          selected_member_ids?: string[] | null
+          selection_type: string
+          sent_at?: string | null
+          status?: string
+          template_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          scheduled_at?: string | null
+          selected_member_ids?: string[] | null
+          selection_type?: string
+          sent_at?: string | null
+          status?: string
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mailings_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "mailing_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           address: string | null

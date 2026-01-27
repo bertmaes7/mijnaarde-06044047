@@ -68,6 +68,117 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          company_id: string | null
+          created_at: string | null
+          date: string
+          description: string
+          id: string
+          member_id: string | null
+          notes: string | null
+          receipt_url: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          company_id?: string | null
+          created_at?: string | null
+          date?: string
+          description: string
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          receipt_url?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          company_id?: string | null
+          created_at?: string | null
+          date?: string
+          description?: string
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          receipt_url?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      income: {
+        Row: {
+          amount: number
+          company_id: string | null
+          created_at: string | null
+          date: string
+          description: string
+          id: string
+          member_id: string | null
+          notes: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          company_id?: string | null
+          created_at?: string | null
+          date?: string
+          description: string
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          company_id?: string | null
+          created_at?: string | null
+          date?: string
+          description?: string
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "income_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "income_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           address: string | null

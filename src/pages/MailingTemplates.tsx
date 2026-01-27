@@ -163,6 +163,9 @@ export default function MailingTemplates() {
               <Card>
                 <CardHeader>
                   <CardTitle>Inhoud</CardTitle>
+                  <CardDescription>
+                    Gebruik HTML voor opgemaakte e-mails of platte tekst voor eenvoudige berichten
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Tabs defaultValue="html">
@@ -172,14 +175,17 @@ export default function MailingTemplates() {
                         HTML
                       </TabsTrigger>
                       <TabsTrigger value="text" className="gap-2">
-                        Text
+                        Tekst
                       </TabsTrigger>
                       <TabsTrigger value="preview" className="gap-2">
                         <Eye className="h-4 w-4" />
                         Preview
                       </TabsTrigger>
                     </TabsList>
-                    <TabsContent value="html" className="mt-4">
+                    <TabsContent value="html" className="mt-4 space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        HTML-versie voor e-mailclients die HTML ondersteunen
+                      </p>
                       <Textarea
                         value={formData.html_content}
                         onChange={(e) => setFormData({ ...formData, html_content: e.target.value })}
@@ -187,31 +193,62 @@ export default function MailingTemplates() {
                         className="font-mono text-sm min-h-[400px]"
                       />
                     </TabsContent>
-                    <TabsContent value="text" className="mt-4">
+                    <TabsContent value="text" className="mt-4 space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Platte tekst versie als fallback of voor eenvoudige e-mails
+                      </p>
                       <Textarea
                         value={formData.text_content}
                         onChange={(e) => setFormData({ ...formData, text_content: e.target.value })}
-                        placeholder="Platte tekst versie (optioneel)"
+                        placeholder="Beste {{voornaam}},&#10;&#10;Hier komt je bericht...&#10;&#10;Met vriendelijke groet,&#10;Mijn Aarde"
                         className="min-h-[400px]"
                       />
                     </TabsContent>
                     <TabsContent value="preview" className="mt-4">
-                      <div className="border rounded-lg p-4 min-h-[400px] bg-white">
-                        {formData.html_content ? (
-                          <div dangerouslySetInnerHTML={{ __html: formData.html_content }} />
-                        ) : (
-                          <p className="text-muted-foreground text-center py-8">
-                            Voer HTML in om een preview te zien
-                          </p>
-                        )}
-                      </div>
+                      <Tabs defaultValue="preview-html">
+                        <TabsList className="mb-4">
+                          <TabsTrigger value="preview-html" disabled={!formData.html_content}>
+                            HTML Preview
+                          </TabsTrigger>
+                          <TabsTrigger value="preview-text" disabled={!formData.text_content}>
+                            Tekst Preview
+                          </TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="preview-html">
+                          <div className="border rounded-lg p-4 min-h-[400px] bg-white">
+                            {formData.html_content ? (
+                              <div dangerouslySetInnerHTML={{ __html: formData.html_content }} />
+                            ) : (
+                              <p className="text-muted-foreground text-center py-8">
+                                Voer HTML in om een preview te zien
+                              </p>
+                            )}
+                          </div>
+                        </TabsContent>
+                        <TabsContent value="preview-text">
+                          <div className="border rounded-lg p-4 min-h-[400px] bg-white">
+                            {formData.text_content ? (
+                              <pre className="whitespace-pre-wrap font-sans text-sm">
+                                {formData.text_content}
+                              </pre>
+                            ) : (
+                              <p className="text-muted-foreground text-center py-8">
+                                Voer tekst in om een preview te zien
+                              </p>
+                            )}
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </TabsContent>
                   </Tabs>
                 </CardContent>
               </Card>
 
               <div className="flex gap-2">
-                <Button onClick={handleSave} disabled={!formData.name || !formData.subject || !formData.html_content}>
+                <Button 
+                  onClick={handleSave} 
+                  disabled={!formData.name || !formData.subject || (!formData.html_content && !formData.text_content)}
+                >
                   <Save className="h-4 w-4 mr-2" />
                   {isCreating ? "Aanmaken" : "Opslaan"}
                 </Button>

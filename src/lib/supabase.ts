@@ -23,6 +23,7 @@ export type Company = {
 export type Member = {
   id: string;
   company_id: string | null;
+  auth_user_id: string | null;
   first_name: string;
   last_name: string;
   email: string | null;
@@ -85,4 +86,13 @@ export type Income = {
   updated_at: string;
   member?: { id: string; first_name: string; last_name: string } | null;
   company?: { id: string; name: string } | null;
+};
+
+export type AppRole = 'admin' | 'member';
+
+export type UserRole = {
+  id: string;
+  user_id: string;
+  role: AppRole;
+  created_at: string;
 };

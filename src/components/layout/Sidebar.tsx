@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, Building2, LayoutDashboard, Leaf, Wallet, TrendingUp, TrendingDown, FileText } from "lucide-react";
+import { Users, Building2, LayoutDashboard, Leaf, Wallet, TrendingUp, TrendingDown, FileText, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const mainNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -24,6 +26,11 @@ const financeSubItems = [
 
 export function Sidebar() {
   const location = useLocation();
+  const { user, signOut } = useAuthContext();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-sidebar-border bg-sidebar">
@@ -37,7 +44,7 @@ export function Sidebar() {
             <h1 className="font-display text-lg font-bold text-sidebar-foreground">
               Mijn Aarde
             </h1>
-            <p className="text-xs text-muted-foreground">Dashboard</p>
+            <p className="text-xs text-muted-foreground">Beheerder</p>
           </div>
         </div>
 
@@ -68,8 +75,24 @@ export function Sidebar() {
           <FinanceNav location={location} />
         </nav>
 
-        {/* Footer */}
-        <div className="border-t border-sidebar-border p-4">
+        {/* User & Footer */}
+        <div className="border-t border-sidebar-border p-4 space-y-3">
+          {user && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground truncate flex-1">
+                {user.email}
+              </p>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleSignOut}
+                title="Uitloggen"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             © 2024 Mijn Aarde vzw
           </p>

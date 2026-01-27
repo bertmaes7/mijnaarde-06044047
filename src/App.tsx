@@ -3,6 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import Auth from "./pages/Auth";
+import MemberPortal from "./pages/MemberPortal";
 import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
 import MemberDetail from "./pages/MemberDetail";
@@ -22,18 +26,97 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/members" element={<Members />} />
-          <Route path="/members/:id" element={<MemberDetail />} />
-          <Route path="/companies" element={<Companies />} />
-          <Route path="/companies/:id" element={<CompanyDetail />} />
-          <Route path="/finance" element={<Finance />} />
-          <Route path="/finance/income" element={<Income />} />
-          <Route path="/finance/expenses" element={<Expenses />} />
-          <Route path="/finance/invoices" element={<Invoices />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/auth" element={<Auth />} />
+            
+            {/* Member portal (logged in members) */}
+            <Route
+              path="/member"
+              element={
+                <ProtectedRoute>
+                  <MemberPortal />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Admin routes */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/members"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Members />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/members/:id"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <MemberDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/companies"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Companies />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/companies/:id"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <CompanyDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finance"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Finance />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finance/income"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Income />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finance/expenses"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Expenses />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finance/invoices"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Invoices />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

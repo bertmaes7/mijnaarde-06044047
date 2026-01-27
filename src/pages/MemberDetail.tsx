@@ -1,6 +1,7 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { MemberForm } from "@/components/members/MemberForm";
+import { RoleManagement } from "@/components/members/RoleManagement";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -108,6 +109,14 @@ export default function MemberDetail() {
             </AlertDialog>
           )}
         </div>
+
+        {/* Role Management - only for existing members */}
+        {!isNew && member && (
+          <RoleManagement 
+            memberId={member.id} 
+            authUserId={member.auth_user_id || null} 
+          />
+        )}
 
         {/* Form */}
         <MemberForm

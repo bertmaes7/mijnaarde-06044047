@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, Building2, LayoutDashboard, Leaf, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, Settings, FileCode, Send } from "lucide-react";
+import { Users, Building2, LayoutDashboard, Leaf, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, Settings, FileCode, Send, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -15,6 +15,7 @@ const mainNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/members", label: "Leden", icon: Users },
   { href: "/companies", label: "Bedrijven", icon: Building2 },
+  { href: "/events", label: "Events", icon: Calendar },
 ];
 
 const financeSubItems = [

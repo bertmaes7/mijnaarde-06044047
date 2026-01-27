@@ -19,6 +19,9 @@ import Invoices from "./pages/Invoices";
 import MailingAssets from "./pages/MailingAssets";
 import MailingTemplates from "./pages/MailingTemplates";
 import Mailings from "./pages/Mailings";
+import Events from "./pages/Events";
+import EventRegistrations from "./pages/EventRegistrations";
+import PublicEvent from "./pages/PublicEvent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,7 +36,7 @@ const App = () => (
           <Routes>
             {/* Public routes */}
             <Route path="/auth" element={<Auth />} />
-            
+            <Route path="/events/:id" element={<PublicEvent />} />
             {/* Member portal (logged in members) */}
             <Route
               path="/member"
@@ -138,6 +141,22 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <MailingTemplates />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/events"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Events />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/events/:id/registrations"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <EventRegistrations />
                 </ProtectedRoute>
               }
             />

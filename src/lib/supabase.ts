@@ -52,3 +52,34 @@ export type Member = {
   updated_at: string;
   company?: Company | null;
 };
+
+export type Income = {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+  type: 'membership' | 'donation' | 'other';
+  member_id: string | null;
+  company_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  member?: Member | null;
+  company?: Company | null;
+};
+
+export type Expense = {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+  type: 'invoice' | 'expense_claim' | 'other';
+  member_id: string | null;
+  company_id: string | null;
+  receipt_url: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  member?: Member | null;
+  company?: Company | null;
+};

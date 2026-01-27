@@ -1,11 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, Building2, LayoutDashboard, Leaf } from "lucide-react";
+import { Users, Building2, LayoutDashboard, Leaf, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/members", label: "Leden", icon: Users },
   { href: "/companies", label: "Bedrijven", icon: Building2 },
+  { href: "/finance", label: "Financieel", icon: Wallet },
 ];
 
 export function Sidebar() {

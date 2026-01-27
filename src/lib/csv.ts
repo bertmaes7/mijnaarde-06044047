@@ -16,6 +16,13 @@ const MEMBER_CSV_HEADERS = [
   "LinkedIn",
   "Instagram",
   "TikTok",
+  "Lid sinds",
+  "Ontvangt mail",
+  "Bestuur",
+  "Actief lid",
+  "Ambassadeur",
+  "Donateur",
+  "Raad van wijzen",
   "Bedrijf",
   "Actief",
   "Notities",
@@ -36,6 +43,7 @@ const MEMBER_FIELD_MAP: Record<string, keyof Omit<Member, "id" | "created_at" | 
   "LinkedIn": "linkedin_url",
   "Instagram": "instagram_url",
   "TikTok": "tiktok_url",
+  "Lid sinds": "member_since",
   "Notities": "notes",
 };
 
@@ -104,6 +112,13 @@ export function exportMembersToCSV(members: Member[]): string {
       escapeCSVValue(member.linkedin_url),
       escapeCSVValue(member.instagram_url),
       escapeCSVValue(member.tiktok_url),
+      escapeCSVValue(member.member_since),
+      member.receives_mail ? "Ja" : "Nee",
+      member.is_board_member ? "Ja" : "Nee",
+      member.is_active_member ? "Ja" : "Nee",
+      member.is_ambassador ? "Ja" : "Nee",
+      member.is_donor ? "Ja" : "Nee",
+      member.is_council_member ? "Ja" : "Nee",
       escapeCSVValue(member.company?.name),
       member.is_active ? "Ja" : "Nee",
       escapeCSVValue(member.notes),
@@ -142,6 +157,13 @@ export interface ParsedMember {
   linkedin_url?: string;
   instagram_url?: string;
   tiktok_url?: string;
+  member_since?: string;
+  receives_mail: boolean;
+  is_board_member: boolean;
+  is_active_member: boolean;
+  is_ambassador: boolean;
+  is_donor: boolean;
+  is_council_member: boolean;
   company_name?: string;
   is_active: boolean;
   notes?: string;
@@ -199,6 +221,13 @@ export function parseCSV(csvContent: string, companies: Company[]): CSVParseResu
       const isActiveValue = getValue("Actief").toLowerCase();
       const isActive = isActiveValue === "" || isActiveValue === "ja" || isActiveValue === "true" || isActiveValue === "1";
       
+      const parseBoolean = (val: string, defaultVal: boolean = true): boolean => {
+        const lower = val.toLowerCase();
+        if (lower === "" || lower === "ja" || lower === "true" || lower === "1") return defaultVal;
+        if (lower === "nee" || lower === "false" || lower === "0") return false;
+        return defaultVal;
+      };
+
       members.push({
         first_name: firstName,
         last_name: lastName,
@@ -214,6 +243,13 @@ export function parseCSV(csvContent: string, companies: Company[]): CSVParseResu
         linkedin_url: getValue("LinkedIn") || undefined,
         instagram_url: getValue("Instagram") || undefined,
         tiktok_url: getValue("TikTok") || undefined,
+        member_since: getValue("Lid sinds") || undefined,
+        receives_mail: parseBoolean(getValue("Ontvangt mail"), true),
+        is_board_member: parseBoolean(getValue("Bestuur"), false),
+        is_active_member: parseBoolean(getValue("Actief lid"), true),
+        is_ambassador: parseBoolean(getValue("Ambassadeur"), false),
+        is_donor: parseBoolean(getValue("Donateur"), false),
+        is_council_member: parseBoolean(getValue("Raad van wijzen"), false),
         company_name: companyName || undefined,
         is_active: isActive,
         notes: getValue("Notities") || undefined,
@@ -243,6 +279,13 @@ export function generateTemplateCSV(): string {
     "https://linkedin.com/in/jan",
     "https://instagram.com/jan",
     "https://tiktok.com/@jan",
+    "2020-01-15",
+    "Ja",
+    "Nee",
+    "Ja",
+    "Nee",
+    "Ja",
+    "Nee",
     "Acme BV",
     "Ja",
     "Voorbeeld notitie",

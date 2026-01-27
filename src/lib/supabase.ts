@@ -36,6 +36,13 @@ export type Member = {
   linkedin_url: string | null;
   instagram_url: string | null;
   tiktok_url: string | null;
+  member_since: string | null;
+  receives_mail: boolean;
+  is_board_member: boolean;
+  is_active_member: boolean;
+  is_ambassador: boolean;
+  is_donor: boolean;
+  is_council_member: boolean;
   created_at: string;
   updated_at: string;
   company?: Company | null;

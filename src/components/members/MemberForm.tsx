@@ -119,10 +119,26 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
   };
 
   const handleSubmit = (data: MemberFormData) => {
-    onSubmit({
+    // Convert empty strings to null/undefined for optional fields
+    const cleanedData = {
       ...data,
       profile_photo_url: photoUrl || undefined,
-    });
+      company_id: data.company_id || undefined,
+      email: data.email || undefined,
+      phone: data.phone || undefined,
+      mobile: data.mobile || undefined,
+      address: data.address || undefined,
+      postal_code: data.postal_code || undefined,
+      city: data.city || undefined,
+      country: data.country || undefined,
+      personal_url: data.personal_url || undefined,
+      notes: data.notes || undefined,
+      facebook_url: data.facebook_url || undefined,
+      linkedin_url: data.linkedin_url || undefined,
+      instagram_url: data.instagram_url || undefined,
+      tiktok_url: data.tiktok_url || undefined,
+    };
+    onSubmit(cleanedData);
   };
 
   const firstName = form.watch("first_name");

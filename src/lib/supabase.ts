@@ -15,6 +15,7 @@ export type Company = {
   bank_account: string | null;
   enterprise_number: string | null;
   vat_number: string | null;
+  is_supplier: boolean;
   created_at: string;
   updated_at: string;
 };

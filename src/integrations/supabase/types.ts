@@ -24,6 +24,7 @@ export type Database = {
           email: string | null
           enterprise_number: string | null
           id: string
+          is_supplier: boolean | null
           name: string
           phone: string | null
           postal_code: string | null
@@ -40,6 +41,7 @@ export type Database = {
           email?: string | null
           enterprise_number?: string | null
           id?: string
+          is_supplier?: boolean | null
           name: string
           phone?: string | null
           postal_code?: string | null
@@ -56,6 +58,7 @@ export type Database = {
           email?: string | null
           enterprise_number?: string | null
           id?: string
+          is_supplier?: boolean | null
           name?: string
           phone?: string | null
           postal_code?: string | null

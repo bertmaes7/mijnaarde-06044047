@@ -12,6 +12,10 @@ const MEMBER_CSV_HEADERS = [
   "Stad",
   "Land",
   "Persoonlijke URL",
+  "Facebook",
+  "LinkedIn",
+  "Instagram",
+  "TikTok",
   "Bedrijf",
   "Actief",
   "Notities",
@@ -28,6 +32,10 @@ const MEMBER_FIELD_MAP: Record<string, keyof Omit<Member, "id" | "created_at" | 
   "Stad": "city",
   "Land": "country",
   "Persoonlijke URL": "personal_url",
+  "Facebook": "facebook_url",
+  "LinkedIn": "linkedin_url",
+  "Instagram": "instagram_url",
+  "TikTok": "tiktok_url",
   "Notities": "notes",
 };
 
@@ -92,6 +100,10 @@ export function exportMembersToCSV(members: Member[]): string {
       escapeCSVValue(member.city),
       escapeCSVValue(member.country),
       escapeCSVValue(member.personal_url),
+      escapeCSVValue(member.facebook_url),
+      escapeCSVValue(member.linkedin_url),
+      escapeCSVValue(member.instagram_url),
+      escapeCSVValue(member.tiktok_url),
       escapeCSVValue(member.company?.name),
       member.is_active ? "Ja" : "Nee",
       escapeCSVValue(member.notes),
@@ -126,6 +138,10 @@ export interface ParsedMember {
   city?: string;
   country?: string;
   personal_url?: string;
+  facebook_url?: string;
+  linkedin_url?: string;
+  instagram_url?: string;
+  tiktok_url?: string;
   company_name?: string;
   is_active: boolean;
   notes?: string;
@@ -194,6 +210,10 @@ export function parseCSV(csvContent: string, companies: Company[]): CSVParseResu
         city: getValue("Stad") || undefined,
         country: getValue("Land") || "België",
         personal_url: getValue("Persoonlijke URL") || undefined,
+        facebook_url: getValue("Facebook") || undefined,
+        linkedin_url: getValue("LinkedIn") || undefined,
+        instagram_url: getValue("Instagram") || undefined,
+        tiktok_url: getValue("TikTok") || undefined,
         company_name: companyName || undefined,
         is_active: isActive,
         notes: getValue("Notities") || undefined,
@@ -219,6 +239,10 @@ export function generateTemplateCSV(): string {
     "Brussel",
     "België",
     "https://www.jan.be",
+    "https://facebook.com/jan",
+    "https://linkedin.com/in/jan",
+    "https://instagram.com/jan",
+    "https://tiktok.com/@jan",
     "Acme BV",
     "Ja",
     "Voorbeeld notitie",

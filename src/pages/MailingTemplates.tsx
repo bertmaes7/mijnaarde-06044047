@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import DOMPurify from "dompurify";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -282,7 +283,18 @@ export default function MailingTemplates() {
                         <TabsContent value="preview-html">
                           <div className="border rounded-lg p-4 min-h-[400px] bg-white">
                             {formData.html_content ? (
-                              <div dangerouslySetInnerHTML={{ __html: formData.html_content }} />
+                              <div 
+                                dangerouslySetInnerHTML={{ 
+                                  __html: DOMPurify.sanitize(formData.html_content, {
+                                    ALLOWED_TAGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br', 'hr', 'span', 'div', 
+                                      'a', 'img', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+                                      'strong', 'b', 'em', 'i', 'u', 'blockquote', 'pre', 'code', 'center'],
+                                    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'style', 'class', 'width', 'height', 
+                                      'border', 'cellpadding', 'cellspacing', 'align', 'valign', 'bgcolor', 'color'],
+                                    ALLOW_DATA_ATTR: false,
+                                  })
+                                }} 
+                              />
                             ) : (
                               <p className="text-muted-foreground text-center py-8">
                                 Voer HTML in om een preview te zien

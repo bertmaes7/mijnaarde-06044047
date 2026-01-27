@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Upload, X } from "lucide-react";
+import { useSignedUrl } from "@/hooks/useSignedUrl";
 
 interface ProfilePhotoUploadProps {
   currentUrl: string | null;

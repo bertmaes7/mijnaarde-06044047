@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, Send, Clock, CalendarIcon, ArrowLeft, Users, Mail } from "lucide-react";
+import { Plus, Trash2, Send, Clock, CalendarIcon, ArrowLeft, Users, Mail, Loader2 } from "lucide-react";
 import {
   useMailings,
   useMailingTemplates,
@@ -21,6 +21,8 @@ import {
   Mailing,
 } from "@/hooks/useMailing";
 import { useMembers } from "@/hooks/useMembers";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,7 +54,7 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
 };
 
 export default function Mailings() {
-  const { data: mailings, isLoading } = useMailings();
+  const { data: mailings, isLoading, refetch } = useMailings();
   const { data: templates } = useMailingTemplates();
   const { data: members } = useMembers();
   const createMailing = useCreateMailing();
@@ -61,6 +63,7 @@ export default function Mailings() {
 
   const [isCreating, setIsCreating] = useState(false);
   const [selectedMailing, setSelectedMailing] = useState<Mailing | null>(null);
+  const [isSending, setIsSending] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     template_id: "" as string,
@@ -71,6 +74,32 @@ export default function Mailings() {
   });
 
   const activeMembers = members?.filter((m) => m.is_active && m.email) || [];
+
+  const handleSendNow = async (mailingId: string) => {
+    setIsSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-mailing", {
+        body: { mailingId },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(`Mailing verzonden naar ${data.sent} ontvangers`);
+        if (data.failed > 0) {
+          toast.warning(`${data.failed} e-mails konden niet worden verzonden`);
+        }
+        refetch();
+      } else {
+        throw new Error(data.error || "Onbekende fout");
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Fout bij versturen mailing";
+      toast.error(message);
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const handleCreate = () => {
     setIsCreating(true);
@@ -366,7 +395,7 @@ export default function Mailings() {
               </Card>
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button variant="outline" onClick={() => handleSave(true)}>
                   Als concept opslaan
                 </Button>
@@ -386,6 +415,37 @@ export default function Mailings() {
                     </>
                   )}
                 </Button>
+                {selectedMailing && selectedMailing.status !== "sent" && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="default"
+                        disabled={!formData.title || !formData.template_id || recipientCount === 0 || isSending}
+                      >
+                        {isSending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4 mr-2" />
+                        )}
+                        Nu versturen
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Mailing nu versturen?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Deze mailing wordt direct verzonden naar {recipientCount} ontvangers. Dit kan niet ongedaan worden gemaakt.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleSendNow(selectedMailing.id)}>
+                          Versturen
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
                 <Button variant="ghost" onClick={handleBack}>
                   Annuleren
                 </Button>

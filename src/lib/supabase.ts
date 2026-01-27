@@ -32,6 +32,10 @@ export type Member = {
   profile_photo_url: string | null;
   notes: string | null;
   is_active: boolean;
+  facebook_url: string | null;
+  linkedin_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
   created_at: string;
   updated_at: string;
   company?: Company | null;

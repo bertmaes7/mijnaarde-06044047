@@ -2,14 +2,36 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { MembersTable } from "@/components/members/MembersTable";
+import { CSVImportDialog } from "@/components/members/CSVImportDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMembers } from "@/hooks/useMembers";
-import { Search, Plus } from "lucide-react";
+import { exportMembersToCSV, downloadCSV } from "@/lib/csv";
+import { toast } from "sonner";
+import { Search, Plus, Upload, Download } from "lucide-react";
 
 export default function Members() {
   const [search, setSearch] = useState("");
-  const { data: members = [], isLoading } = useMembers(search);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const { data: members = [], isLoading, refetch } = useMembers(search);
+
+  const handleExport = () => {
+    if (members.length === 0) {
+      toast.error("Geen leden om te exporteren");
+      return;
+    }
+    const csv = exportMembersToCSV(members);
+    const date = new Date().toISOString().split("T")[0];
+    downloadCSV(csv, `leden_export_${date}.csv`);
+    toast.success(`${members.length} leden geëxporteerd`);
+  };
+
+  const handleImportClose = (open: boolean) => {
+    setImportDialogOpen(open);
+    if (!open) {
+      refetch();
+    }
+  };
 
   return (
     <MainLayout>
@@ -24,12 +46,31 @@ export default function Members() {
               Beheer alle leden van de vzw
             </p>
           </div>
-          <Button asChild className="gap-2">
-            <Link to="/members/new">
-              <Plus className="h-4 w-4" />
-              Nieuw lid
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setImportDialogOpen(true)}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              Importeren
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={members.length === 0}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Exporteren
+            </Button>
+            <Button asChild className="gap-2">
+              <Link to="/members/new">
+                <Plus className="h-4 w-4" />
+                Nieuw lid
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Search */}
@@ -45,6 +86,12 @@ export default function Members() {
 
         {/* Table */}
         <MembersTable members={members} isLoading={isLoading} />
+
+        {/* Import Dialog */}
+        <CSVImportDialog
+          open={importDialogOpen}
+          onOpenChange={handleImportClose}
+        />
       </div>
     </MainLayout>
   );

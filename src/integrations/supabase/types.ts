@@ -69,14 +69,21 @@ export type Database = {
           id: string
           instagram_url: string | null
           is_active: boolean | null
+          is_active_member: boolean | null
+          is_ambassador: boolean | null
+          is_board_member: boolean | null
+          is_council_member: boolean | null
+          is_donor: boolean | null
           last_name: string
           linkedin_url: string | null
+          member_since: string | null
           mobile: string | null
           notes: string | null
           personal_url: string | null
           phone: string | null
           postal_code: string | null
           profile_photo_url: string | null
+          receives_mail: boolean | null
           tiktok_url: string | null
           updated_at: string | null
         }
@@ -92,14 +99,21 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           is_active?: boolean | null
+          is_active_member?: boolean | null
+          is_ambassador?: boolean | null
+          is_board_member?: boolean | null
+          is_council_member?: boolean | null
+          is_donor?: boolean | null
           last_name: string
           linkedin_url?: string | null
+          member_since?: string | null
           mobile?: string | null
           notes?: string | null
           personal_url?: string | null
           phone?: string | null
           postal_code?: string | null
           profile_photo_url?: string | null
+          receives_mail?: boolean | null
           tiktok_url?: string | null
           updated_at?: string | null
         }
@@ -115,14 +129,21 @@ export type Database = {
           id?: string
           instagram_url?: string | null
           is_active?: boolean | null
+          is_active_member?: boolean | null
+          is_ambassador?: boolean | null
+          is_board_member?: boolean | null
+          is_council_member?: boolean | null
+          is_donor?: boolean | null
           last_name?: string
           linkedin_url?: string | null
+          member_since?: string | null
           mobile?: string | null
           notes?: string | null
           personal_url?: string | null
           phone?: string | null
           postal_code?: string | null
           profile_photo_url?: string | null
+          receives_mail?: boolean | null
           tiktok_url?: string | null
           updated_at?: string | null
         }

@@ -28,7 +28,8 @@ import { MemberAvatar } from "./MemberAvatar";
 import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
 import { SocialMediaFields } from "./SocialMediaFields";
 import { WebsitePreview } from "./WebsitePreview";
-import { Save, User, Building2, MapPin, Globe } from "lucide-react";
+import { MembershipFields } from "./MembershipFields";
+import { Save, User, Building2, MapPin, Globe, Calendar } from "lucide-react";
 
 const memberSchema = z.object({
   first_name: z.string().min(1, "Voornaam is verplicht"),
@@ -49,6 +50,13 @@ const memberSchema = z.object({
   linkedin_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
   instagram_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
   tiktok_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
+  member_since: z.string().optional(),
+  receives_mail: z.boolean(),
+  is_board_member: z.boolean(),
+  is_active_member: z.boolean(),
+  is_ambassador: z.boolean(),
+  is_donor: z.boolean(),
+  is_council_member: z.boolean(),
 });
 
 type MemberFormData = z.infer<typeof memberSchema>;
@@ -84,6 +92,13 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
       linkedin_url: member?.linkedin_url || "",
       instagram_url: member?.instagram_url || "",
       tiktok_url: member?.tiktok_url || "",
+      member_since: member?.member_since || "",
+      receives_mail: member?.receives_mail ?? true,
+      is_board_member: member?.is_board_member ?? false,
+      is_active_member: member?.is_active_member ?? true,
+      is_ambassador: member?.is_ambassador ?? false,
+      is_donor: member?.is_donor ?? false,
+      is_council_member: member?.is_council_member ?? false,
     },
   });
 
@@ -108,6 +123,13 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
         linkedin_url: member.linkedin_url || "",
         instagram_url: member.instagram_url || "",
         tiktok_url: member.tiktok_url || "",
+        member_since: member.member_since || "",
+        receives_mail: member.receives_mail ?? true,
+        is_board_member: member.is_board_member ?? false,
+        is_active_member: member.is_active_member ?? true,
+        is_ambassador: member.is_ambassador ?? false,
+        is_donor: member.is_donor ?? false,
+        is_council_member: member.is_council_member ?? false,
       });
       setPhotoUrl(member.profile_photo_url);
     }
@@ -137,6 +159,7 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
       linkedin_url: data.linkedin_url || undefined,
       instagram_url: data.instagram_url || undefined,
       tiktok_url: data.tiktok_url || undefined,
+      member_since: data.member_since || undefined,
     };
     onSubmit(cleanedData);
   };
@@ -342,7 +365,23 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <FormField
+              <FormField
+                control={form.control}
+                name="member_since"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Lid sinds
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
                 control={form.control}
                 name="company_id"
                 render={({ field }) => (
@@ -375,7 +414,7 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
                 name="is_active"
                 render={({ field }) => (
                   <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                    <FormLabel className="cursor-pointer">Actief lid</FormLabel>
+                    <FormLabel className="cursor-pointer">Actief</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}
@@ -387,6 +426,11 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
               />
             </CardContent>
           </Card>
+
+          {/* Membership toggles */}
+          <div className="lg:col-span-2">
+            <MembershipFields control={form.control} />
+          </div>
 
           {/* Social Media */}
           <div className="lg:col-span-2">

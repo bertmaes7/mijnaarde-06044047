@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,12 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, Save, FileCode, Eye, ArrowLeft } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { Plus, Trash2, Save, FileCode, Eye, ArrowLeft, FileText } from "lucide-react";
 import {
   useMailingTemplates,
   useCreateMailingTemplate,
   useUpdateMailingTemplate,
   useDeleteMailingTemplate,
+  useMailingAssets,
   MailingTemplate,
 } from "@/hooks/useMailing";
 import {
@@ -48,6 +50,7 @@ const placeholderHelp = [
 
 export default function MailingTemplates() {
   const { data: templates, isLoading } = useMailingTemplates();
+  const { data: assets } = useMailingAssets();
   const createTemplate = useCreateMailingTemplate();
   const updateTemplate = useUpdateMailingTemplate();
   const deleteTemplate = useDeleteMailingTemplate();
@@ -60,6 +63,36 @@ export default function MailingTemplates() {
     html_content: "",
     text_content: "",
   });
+  const [activeTab, setActiveTab] = useState("html");
+  const htmlTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const textTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const textAssets = assets?.filter((a) => a.type === "text") || [];
+
+  const insertTextBlock = (value: string) => {
+    const ref = activeTab === "html" ? htmlTextareaRef : textTextareaRef;
+    const field = activeTab === "html" ? "html_content" : "text_content";
+    
+    if (ref.current) {
+      const start = ref.current.selectionStart;
+      const end = ref.current.selectionEnd;
+      const currentValue = formData[field];
+      const newValue = currentValue.substring(0, start) + value + currentValue.substring(end);
+      setFormData({ ...formData, [field]: newValue });
+      
+      // Restore cursor position after value
+      setTimeout(() => {
+        if (ref.current) {
+          const newPos = start + value.length;
+          ref.current.setSelectionRange(newPos, newPos);
+          ref.current.focus();
+        }
+      }, 0);
+    } else {
+      // Fallback: append to end
+      setFormData({ ...formData, [field]: formData[field] + value });
+    }
+  };
 
   const handleCreate = () => {
     setIsCreating(true);
@@ -168,43 +201,75 @@ export default function MailingTemplates() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs defaultValue="html">
-                    <TabsList>
-                      <TabsTrigger value="html" className="gap-2">
-                        <FileCode className="h-4 w-4" />
-                        HTML
-                      </TabsTrigger>
-                      <TabsTrigger value="text" className="gap-2">
-                        Tekst
-                      </TabsTrigger>
-                      <TabsTrigger value="preview" className="gap-2">
-                        <Eye className="h-4 w-4" />
-                        Preview
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="html" className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between mb-4">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+                      <TabsList>
+                        <TabsTrigger value="html" className="gap-2">
+                          <FileCode className="h-4 w-4" />
+                          HTML
+                        </TabsTrigger>
+                        <TabsTrigger value="text" className="gap-2">
+                          Tekst
+                        </TabsTrigger>
+                        <TabsTrigger value="preview" className="gap-2">
+                          <Eye className="h-4 w-4" />
+                          Preview
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    {(activeTab === "html" || activeTab === "text") && textAssets.length > 0 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="ml-2">
+                            <FileText className="h-4 w-4 mr-2" />
+                            Tekstblok invoegen
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64">
+                          <DropdownMenuLabel>Tekstblokken</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {textAssets.map((asset) => (
+                            <DropdownMenuItem
+                              key={asset.id}
+                              onClick={() => insertTextBlock(asset.value)}
+                              className="flex flex-col items-start"
+                            >
+                              <span className="font-medium">{asset.label}</span>
+                              <span className="text-xs text-muted-foreground truncate max-w-full">
+                                {asset.value.substring(0, 50)}...
+                              </span>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <TabsContent value="html" className="mt-0 space-y-2">
                       <p className="text-sm text-muted-foreground">
                         HTML-versie voor e-mailclients die HTML ondersteunen
                       </p>
                       <Textarea
+                        ref={htmlTextareaRef}
                         value={formData.html_content}
                         onChange={(e) => setFormData({ ...formData, html_content: e.target.value })}
                         placeholder="<html>...</html>"
                         className="font-mono text-sm min-h-[400px]"
                       />
                     </TabsContent>
-                    <TabsContent value="text" className="mt-4 space-y-2">
+                    <TabsContent value="text" className="mt-0 space-y-2">
                       <p className="text-sm text-muted-foreground">
                         Platte tekst versie als fallback of voor eenvoudige e-mails
                       </p>
                       <Textarea
+                        ref={textTextareaRef}
                         value={formData.text_content}
                         onChange={(e) => setFormData({ ...formData, text_content: e.target.value })}
                         placeholder="Beste {{voornaam}},&#10;&#10;Hier komt je bericht...&#10;&#10;Met vriendelijke groet,&#10;Mijn Aarde"
                         className="min-h-[400px]"
                       />
                     </TabsContent>
-                    <TabsContent value="preview" className="mt-4">
+                    <TabsContent value="preview" className="mt-0">
                       <Tabs defaultValue="preview-html">
                         <TabsList className="mb-4">
                           <TabsTrigger value="preview-html" disabled={!formData.html_content}>

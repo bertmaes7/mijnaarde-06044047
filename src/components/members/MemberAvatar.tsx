@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useSignedUrl } from "@/hooks/useSignedUrl";
 
 interface MemberAvatarProps {
   firstName: string;
@@ -21,10 +22,11 @@ export function MemberAvatar({
   size = "md",
 }: MemberAvatarProps) {
   const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
+  const signedUrl = useSignedUrl(photoUrl, "profile-photos");
 
   return (
     <Avatar className={cn(sizeClasses[size])}>
-      <AvatarImage src={photoUrl || undefined} alt={`${firstName} ${lastName}`} />
+      <AvatarImage src={signedUrl || undefined} alt={`${firstName} ${lastName}`} />
       <AvatarFallback className="bg-primary text-primary-foreground font-medium">
         {initials}
       </AvatarFallback>

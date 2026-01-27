@@ -311,15 +311,15 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
+                <FormField
                 control={form.control}
                 name="company_id"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Bedrijf</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
-                      value={field.value || ""}
+                      onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
+                      value={field.value || "none"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -327,7 +327,7 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Geen bedrijf</SelectItem>
+                        <SelectItem value="none">Geen bedrijf</SelectItem>
                         {companies.map((company) => (
                           <SelectItem key={company.id} value={company.id}>
                             {company.name}

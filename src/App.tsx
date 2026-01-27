@@ -16,6 +16,9 @@ import Finance from "./pages/Finance";
 import Income from "./pages/Income";
 import Expenses from "./pages/Expenses";
 import Invoices from "./pages/Invoices";
+import MailingAssets from "./pages/MailingAssets";
+import MailingTemplates from "./pages/MailingTemplates";
+import Mailings from "./pages/Mailings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -111,6 +114,30 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <Invoices />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mailing"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Mailings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mailing/assets"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <MailingAssets />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mailing/templates"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <MailingTemplates />
                 </ProtectedRoute>
               }
             />

@@ -71,6 +71,7 @@ const expenseSchema = z.object({
   amount: z.string().min(1, "Bedrag is verplicht"),
   date: z.string().min(1, "Datum is verplicht"),
   type: z.enum(["invoice", "expense_claim", "other"]),
+  vat_rate: z.string().default("21"),
   member_id: z.string().optional(),
   company_id: z.string().optional(),
   notes: z.string().optional(),
@@ -108,6 +109,7 @@ export default function Expenses() {
       amount: "",
       date: new Date().toISOString().split("T")[0],
       type: "invoice",
+      vat_rate: "21",
       member_id: "",
       company_id: "",
       notes: "",
@@ -139,6 +141,7 @@ export default function Expenses() {
         amount: parseFloat(data.amount),
         date: data.date,
         type: data.type,
+        vat_rate: parseFloat(data.vat_rate),
         member_id: data.member_id && data.member_id !== "none" ? data.member_id : null,
         company_id: data.company_id && data.company_id !== "none" ? data.company_id : null,
         notes: data.notes || null,
@@ -242,28 +245,53 @@ export default function Expenses() {
                       )}
                     />
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="invoice">Factuur</SelectItem>
-                            <SelectItem value="expense_claim">Onkostendeclaratie</SelectItem>
-                            <SelectItem value="other">Overig</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="invoice">Factuur</SelectItem>
+                              <SelectItem value="expense_claim">Onkostendeclaratie</SelectItem>
+                              <SelectItem value="other">Overig</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="vat_rate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>BTW-tarief</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="0">0%</SelectItem>
+                              <SelectItem value="6">6%</SelectItem>
+                              <SelectItem value="12">12%</SelectItem>
+                              <SelectItem value="21">21%</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <FormField
                       control={form.control}
@@ -404,6 +432,7 @@ export default function Expenses() {
                     <TableHead>Datum</TableHead>
                     <TableHead>Omschrijving</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>BTW</TableHead>
                     <TableHead>Gekoppeld aan</TableHead>
                     <TableHead>Bonnetje</TableHead>
                     <TableHead className="text-right">Bedrag</TableHead>
@@ -423,6 +452,9 @@ export default function Expenses() {
                             ? "Onkosten"
                             : "Overig"}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{expense.vat_rate}%</Badge>
                       </TableCell>
                       <TableCell>
                         {expense.member ? (

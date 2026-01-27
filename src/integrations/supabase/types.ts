@@ -81,6 +81,7 @@ export type Database = {
           receipt_url: string | null
           type: string
           updated_at: string | null
+          vat_rate: number | null
         }
         Insert: {
           amount: number
@@ -94,6 +95,7 @@ export type Database = {
           receipt_url?: string | null
           type: string
           updated_at?: string | null
+          vat_rate?: number | null
         }
         Update: {
           amount?: number
@@ -107,6 +109,7 @@ export type Database = {
           receipt_url?: string | null
           type?: string
           updated_at?: string | null
+          vat_rate?: number | null
         }
         Relationships: [
           {

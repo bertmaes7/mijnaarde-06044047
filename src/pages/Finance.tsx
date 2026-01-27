@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useIncome, useExpenses } from "@/hooks/useFinance";
@@ -22,6 +22,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  DateRangeFilter,
+  DateFilterType,
+  QuarterOption,
+  getQuarterDates,
+} from "@/components/finance/DateRangeFilter";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("nl-BE", {
@@ -38,17 +44,74 @@ export default function Finance() {
   const { data: income = [], isLoading: incomeLoading } = useIncome();
   const { data: expenses = [], isLoading: expensesLoading } = useExpenses();
 
+  // Date filter state
+  const [filterType, setFilterType] = useState<DateFilterType>("all");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedQuarter, setSelectedQuarter] = useState<QuarterOption>("Q1");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+
+  const clearFilters = () => {
+    setFilterType("all");
+    setCustomStartDate("");
+    setCustomEndDate("");
+  };
+
+  // Filter function for transactions
+  const filterByDate = (dateString: string) => {
+    if (filterType === "all") return true;
+
+    const date = new Date(dateString);
+
+    if (filterType === "quarter") {
+      const { start, end } = getQuarterDates(selectedYear, selectedQuarter);
+      return date >= start && date <= end;
+    }
+
+    if (filterType === "custom") {
+      if (customStartDate && date < new Date(customStartDate)) return false;
+      if (customEndDate && date > new Date(customEndDate)) return false;
+      return true;
+    }
+
+    return true;
+  };
+
+  // Filtered data
+  const filteredIncome = useMemo(
+    () => income.filter((i) => filterByDate(i.date)),
+    [income, filterType, selectedYear, selectedQuarter, customStartDate, customEndDate]
+  );
+
+  const filteredExpenses = useMemo(
+    () => expenses.filter((e) => filterByDate(e.date)),
+    [expenses, filterType, selectedYear, selectedQuarter, customStartDate, customEndDate]
+  );
+
   const stats = useMemo(() => {
-    const totalIncome = income.reduce((sum, i) => sum + Number(i.amount), 0);
-    const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+    const totalIncome = filteredIncome.reduce((sum, i) => sum + Number(i.amount), 0);
+    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
     const balance = totalIncome - totalExpenses;
 
-    const membershipIncome = income
+    const membershipIncome = filteredIncome
       .filter((i) => i.type === "membership")
       .reduce((sum, i) => sum + Number(i.amount), 0);
-    const donationIncome = income
+    const donationIncome = filteredIncome
       .filter((i) => i.type === "donation")
       .reduce((sum, i) => sum + Number(i.amount), 0);
+
+    // Calculate VAT totals for expenses
+    const vatTotals = filteredExpenses.reduce(
+      (acc, e) => {
+        const amount = Number(e.amount);
+        const vatRate = e.vat_rate || 21;
+        const vatAmount = amount * (vatRate / (100 + vatRate));
+        acc.totalVat += vatAmount;
+        acc.byRate[vatRate] = (acc.byRate[vatRate] || 0) + vatAmount;
+        return acc;
+      },
+      { totalVat: 0, byRate: {} as Record<number, number> }
+    );
 
     return {
       totalIncome,
@@ -56,12 +119,13 @@ export default function Finance() {
       balance,
       membershipIncome,
       donationIncome,
+      vatTotals,
     };
-  }, [income, expenses]);
+  }, [filteredIncome, filteredExpenses]);
 
   // Combine and sort all transactions for bank overview
   const allTransactions = useMemo(() => {
-    const incomeTransactions = income.map((i) => ({
+    const incomeTransactions = filteredIncome.map((i) => ({
       id: i.id,
       date: i.date,
       description: i.description,
@@ -73,7 +137,7 @@ export default function Finance() {
         : i.company?.name || null,
     }));
 
-    const expenseTransactions = expenses.map((e) => ({
+    const expenseTransactions = filteredExpenses.map((e) => ({
       id: e.id,
       date: e.date,
       description: e.description,
@@ -88,7 +152,7 @@ export default function Finance() {
     return [...incomeTransactions, ...expenseTransactions].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
-  }, [income, expenses]);
+  }, [filteredIncome, filteredExpenses]);
 
   const isLoading = incomeLoading || expensesLoading;
 
@@ -131,6 +195,25 @@ export default function Finance() {
           </div>
         </div>
 
+        {/* Date Filter */}
+        <Card className="card-elevated">
+          <CardContent className="pt-4">
+            <DateRangeFilter
+              filterType={filterType}
+              setFilterType={setFilterType}
+              selectedYear={selectedYear}
+              setSelectedYear={setSelectedYear}
+              selectedQuarter={selectedQuarter}
+              setSelectedQuarter={setSelectedQuarter}
+              customStartDate={customStartDate}
+              setCustomStartDate={setCustomStartDate}
+              customEndDate={customEndDate}
+              setCustomEndDate={setCustomEndDate}
+              onClear={clearFilters}
+            />
+          </CardContent>
+        </Card>
+
         {/* Stats Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="card-elevated">
@@ -145,7 +228,7 @@ export default function Finance() {
                 {formatCurrency(stats.totalIncome)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {income.length} transacties
+                {filteredIncome.length} transacties
               </p>
             </CardContent>
           </Card>
@@ -162,7 +245,7 @@ export default function Finance() {
                 {formatCurrency(stats.totalExpenses)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {expenses.length} transacties
+                {filteredExpenses.length} transacties
               </p>
             </CardContent>
           </Card>
@@ -206,18 +289,52 @@ export default function Finance() {
           </Card>
         </div>
 
+        {/* VAT Summary */}
+        {filterType !== "all" && stats.vatTotals.totalVat > 0 && (
+          <Card className="card-elevated border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                BTW Overzicht (Uitgaven)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-4">
+                <div>
+                  <span className="text-xs text-muted-foreground">Totaal BTW:</span>
+                  <span className="ml-2 font-bold">{formatCurrency(stats.vatTotals.totalVat)}</span>
+                </div>
+                {Object.entries(stats.vatTotals.byRate).map(([rate, amount]) => (
+                  <div key={rate}>
+                    <Badge variant="outline" className="mr-2">{rate}%</Badge>
+                    <span className="text-sm">{formatCurrency(amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Bank Overview */}
         <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Receipt className="h-5 w-5 text-primary" />
               Bankoverzicht - Recente Transacties
+              {filterType !== "all" && (
+                <Badge variant="secondary" className="ml-2">
+                  {filterType === "quarter"
+                    ? `${selectedQuarter} ${selectedYear}`
+                    : "Aangepaste periode"}
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {allTransactions.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
-                Nog geen transacties geregistreerd
+                {filterType === "all"
+                  ? "Nog geen transacties geregistreerd"
+                  : "Geen transacties in deze periode"}
               </p>
             ) : (
               <Table>

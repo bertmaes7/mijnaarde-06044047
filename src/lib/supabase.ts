@@ -53,20 +53,7 @@ export type Member = {
   company?: Company | null;
 };
 
-export type Income = {
-  id: string;
-  description: string;
-  amount: number;
-  date: string;
-  type: 'membership' | 'donation' | 'other';
-  member_id: string | null;
-  company_id: string | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-  member?: Member | null;
-  company?: Company | null;
-};
+// Income type is defined after Expense type
 
 export type Expense = {
   id: string;
@@ -78,8 +65,24 @@ export type Expense = {
   company_id: string | null;
   receipt_url: string | null;
   notes: string | null;
+  vat_rate: number;
   created_at: string;
   updated_at: string;
-  member?: Member | null;
-  company?: Company | null;
+  member?: { id: string; first_name: string; last_name: string } | null;
+  company?: { id: string; name: string } | null;
+};
+
+export type Income = {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+  type: 'membership' | 'donation' | 'other';
+  member_id: string | null;
+  company_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  member?: { id: string; first_name: string; last_name: string } | null;
+  company?: { id: string; name: string } | null;
 };

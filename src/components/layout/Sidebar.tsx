@@ -1,12 +1,25 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, Building2, LayoutDashboard, Leaf, Wallet } from "lucide-react";
+import { Users, Building2, LayoutDashboard, Leaf, Wallet, TrendingUp, TrendingDown, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 
-const navItems = [
+const mainNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/members", label: "Leden", icon: Users },
   { href: "/companies", label: "Bedrijven", icon: Building2 },
-  { href: "/finance", label: "Financieel", icon: Wallet },
+];
+
+const financeSubItems = [
+  { href: "/finance", label: "Overzicht", icon: Wallet },
+  { href: "/finance/income", label: "Inkomsten", icon: TrendingUp },
+  { href: "/finance/expenses", label: "Uitgaven", icon: TrendingDown },
+  { href: "/finance/invoices", label: "Uitgaande Facturen", icon: FileText },
 ];
 
 export function Sidebar() {
@@ -30,7 +43,7 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {navItems.map((item) => {
+          {mainNavItems.map((item) => {
             const isActive =
               location.pathname === item.href ||
               (item.href !== "/" && location.pathname.startsWith(item.href));
@@ -50,6 +63,9 @@ export function Sidebar() {
               </Link>
             );
           })}
+
+          {/* Finance Section */}
+          <FinanceNav location={location} />
         </nav>
 
         {/* Footer */}
@@ -60,5 +76,54 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+  );
+}
+
+function FinanceNav({ location }: { location: ReturnType<typeof useLocation> }) {
+  const isFinanceActive = location.pathname.startsWith("/finance");
+  const [isOpen, setIsOpen] = useState(isFinanceActive);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger
+        className={cn(
+          "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          isFinanceActive
+            ? "bg-primary/10 text-primary"
+            : "text-sidebar-foreground hover:bg-sidebar-accent"
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <Wallet className="h-5 w-5" />
+          Financieel
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 transition-transform duration-200",
+            isOpen && "rotate-180"
+          )}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-1 pt-1 pl-4">
+        {financeSubItems.map((item) => {
+          const isActive = location.pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              to={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent"
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

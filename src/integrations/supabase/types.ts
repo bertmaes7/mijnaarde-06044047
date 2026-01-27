@@ -17,41 +17,50 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          bank_account: string | null
           city: string | null
           country: string | null
           created_at: string | null
           email: string | null
+          enterprise_number: string | null
           id: string
           name: string
           phone: string | null
           postal_code: string | null
           updated_at: string | null
+          vat_number: string | null
           website: string | null
         }
         Insert: {
           address?: string | null
+          bank_account?: string | null
           city?: string | null
           country?: string | null
           created_at?: string | null
           email?: string | null
+          enterprise_number?: string | null
           id?: string
           name: string
           phone?: string | null
           postal_code?: string | null
           updated_at?: string | null
+          vat_number?: string | null
           website?: string | null
         }
         Update: {
           address?: string | null
+          bank_account?: string | null
           city?: string | null
           country?: string | null
           created_at?: string | null
           email?: string | null
+          enterprise_number?: string | null
           id?: string
           name?: string
           phone?: string | null
           postal_code?: string | null
           updated_at?: string | null
+          vat_number?: string | null
           website?: string | null
         }
         Relationships: []
@@ -59,6 +68,7 @@ export type Database = {
       members: {
         Row: {
           address: string | null
+          bank_account: string | null
           city: string | null
           company_id: string | null
           country: string | null
@@ -89,6 +99,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          bank_account?: string | null
           city?: string | null
           company_id?: string | null
           country?: string | null
@@ -119,6 +130,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          bank_account?: string | null
           city?: string | null
           company_id?: string | null
           country?: string | null

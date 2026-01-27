@@ -12,6 +12,9 @@ export type Company = {
   website: string | null;
   email: string | null;
   phone: string | null;
+  bank_account: string | null;
+  enterprise_number: string | null;
+  vat_number: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -43,6 +46,7 @@ export type Member = {
   is_ambassador: boolean;
   is_donor: boolean;
   is_council_member: boolean;
+  bank_account: string | null;
   created_at: string;
   updated_at: string;
   company?: Company | null;

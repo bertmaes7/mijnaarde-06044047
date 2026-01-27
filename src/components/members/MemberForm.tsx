@@ -29,7 +29,7 @@ import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
 import { SocialMediaFields } from "./SocialMediaFields";
 import { WebsitePreview } from "./WebsitePreview";
 import { MembershipFields } from "./MembershipFields";
-import { Save, User, Building2, MapPin, Globe, Calendar } from "lucide-react";
+import { Save, User, Building2, MapPin, Globe, Calendar, CreditCard } from "lucide-react";
 
 const memberSchema = z.object({
   first_name: z.string().min(1, "Voornaam is verplicht"),
@@ -50,6 +50,7 @@ const memberSchema = z.object({
   linkedin_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
   instagram_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
   tiktok_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
+  bank_account: z.string().optional(),
   member_since: z.string().optional(),
   receives_mail: z.boolean(),
   is_board_member: z.boolean(),
@@ -92,6 +93,7 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
       linkedin_url: member?.linkedin_url || "",
       instagram_url: member?.instagram_url || "",
       tiktok_url: member?.tiktok_url || "",
+      bank_account: member?.bank_account || "",
       member_since: member?.member_since || "",
       receives_mail: member?.receives_mail ?? true,
       is_board_member: member?.is_board_member ?? false,
@@ -123,6 +125,7 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
         linkedin_url: member.linkedin_url || "",
         instagram_url: member.instagram_url || "",
         tiktok_url: member.tiktok_url || "",
+        bank_account: member.bank_account || "",
         member_since: member.member_since || "",
         receives_mail: member.receives_mail ?? true,
         is_board_member: member.is_board_member ?? false,
@@ -159,6 +162,7 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
       linkedin_url: data.linkedin_url || undefined,
       instagram_url: data.instagram_url || undefined,
       tiktok_url: data.tiktok_url || undefined,
+      bank_account: data.bank_account || undefined,
       member_since: data.member_since || undefined,
     };
     onSubmit(cleanedData);
@@ -356,7 +360,30 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
             </CardContent>
           </Card>
 
-          {/* Company & Status */}
+          {/* Bank Account */}
+          <Card className="lg:col-span-1 card-elevated">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CreditCard className="h-5 w-5 text-primary" />
+                Financieel
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="bank_account"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bankrekeningnummer (IBAN)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="BE12 3456 7890 1234" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
           <Card className="lg:col-span-1 card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">

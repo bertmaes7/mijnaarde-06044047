@@ -30,7 +30,11 @@ import {
   Mail,
   Phone,
   MapPin,
+  CreditCard,
+  FileText,
+  Hash,
 } from "lucide-react";
+import { WebsitePreview } from "@/components/members/WebsitePreview";
 
 const companySchema = z.object({
   name: z.string().min(1, "Bedrijfsnaam is verplicht"),
@@ -41,6 +45,9 @@ const companySchema = z.object({
   website: z.string().url("Ongeldige URL").optional().or(z.literal("")),
   email: z.string().email("Ongeldig e-mailadres").optional().or(z.literal("")),
   phone: z.string().optional(),
+  bank_account: z.string().optional(),
+  enterprise_number: z.string().optional(),
+  vat_number: z.string().optional(),
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -62,6 +69,9 @@ export default function Companies() {
       website: "",
       email: "",
       phone: "",
+      bank_account: "",
+      enterprise_number: "",
+      vat_number: "",
     },
   });
 
@@ -70,10 +80,24 @@ export default function Companies() {
   );
 
   const handleSubmit = async (data: CompanyFormData) => {
-    await createCompany.mutateAsync(data as any);
+    await createCompany.mutateAsync({
+      name: data.name,
+      address: data.address || null,
+      postal_code: data.postal_code || null,
+      city: data.city || null,
+      country: data.country || null,
+      website: data.website || null,
+      email: data.email || null,
+      phone: data.phone || null,
+      bank_account: data.bank_account || null,
+      enterprise_number: data.enterprise_number || null,
+      vat_number: data.vat_number || null,
+    });
     form.reset();
     setIsDialogOpen(false);
   };
+
+  const websiteUrl = form.watch("website");
 
   return (
     <MainLayout>
@@ -95,7 +119,7 @@ export default function Companies() {
                 Nieuw bedrijf
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="font-display">
                   Nieuw bedrijf toevoegen
@@ -151,19 +175,67 @@ export default function Companies() {
                       )}
                     />
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="website"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Website</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://www.acme.be" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <FormField
+                        control={form.control}
+                        name="website"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Website</FormLabel>
+                            <FormControl>
+                              <Input placeholder="https://www.acme.be" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <WebsitePreview url={websiteUrl} />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <FormField
+                      control={form.control}
+                      name="enterprise_number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Ondernemingsnummer</FormLabel>
+                          <FormControl>
+                            <Input placeholder="0123.456.789" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="vat_number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>BTW-nummer</FormLabel>
+                          <FormControl>
+                            <Input placeholder="BE0123456789" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="bank_account"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Bankrekeningnummer</FormLabel>
+                          <FormControl>
+                            <Input placeholder="BE12 3456 7890 1234" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   <FormField
                     control={form.control}
                     name="address"
@@ -306,6 +378,29 @@ export default function Companies() {
                           .filter(Boolean)
                           .join(", ")}
                       </span>
+                    </div>
+                  )}
+                  {company.enterprise_number && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <FileText className="h-4 w-4" />
+                      <span>KBO: {company.enterprise_number}</span>
+                    </div>
+                  )}
+                  {company.vat_number && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Hash className="h-4 w-4" />
+                      <span>BTW: {company.vat_number}</span>
+                    </div>
+                  )}
+                  {company.bank_account && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <CreditCard className="h-4 w-4" />
+                      <span>{company.bank_account}</span>
+                    </div>
+                  )}
+                  {company.website && (
+                    <div className="mt-3 pt-3 border-t">
+                      <WebsitePreview url={company.website} />
                     </div>
                   )}
                 </CardContent>

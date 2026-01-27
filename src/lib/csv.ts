@@ -16,6 +16,7 @@ const MEMBER_CSV_HEADERS = [
   "LinkedIn",
   "Instagram",
   "TikTok",
+  "Bankrekeningnummer",
   "Lid sinds",
   "Ontvangt mail",
   "Bestuur",
@@ -43,6 +44,7 @@ const MEMBER_FIELD_MAP: Record<string, keyof Omit<Member, "id" | "created_at" | 
   "LinkedIn": "linkedin_url",
   "Instagram": "instagram_url",
   "TikTok": "tiktok_url",
+  "Bankrekeningnummer": "bank_account",
   "Lid sinds": "member_since",
   "Notities": "notes",
 };
@@ -144,6 +146,7 @@ export function exportMembersToCSV(members: Member[]): string {
       escapeCSVValue(member.linkedin_url),
       escapeCSVValue(member.instagram_url),
       escapeCSVValue(member.tiktok_url),
+      escapeCSVValue(member.bank_account),
       escapeCSVValue(member.member_since),
       member.receives_mail ? "Ja" : "Nee",
       member.is_board_member ? "Ja" : "Nee",
@@ -189,6 +192,7 @@ export interface ParsedMember {
   linkedin_url?: string;
   instagram_url?: string;
   tiktok_url?: string;
+  bank_account?: string;
   member_since?: string;
   receives_mail: boolean;
   is_board_member: boolean;
@@ -269,6 +273,7 @@ export function parseCSV(csvContent: string, companies: Company[]): CSVParseResu
         linkedin_url: getValue("LinkedIn") || undefined,
         instagram_url: getValue("Instagram") || undefined,
         tiktok_url: getValue("TikTok") || undefined,
+        bank_account: getValue("Bankrekeningnummer") || undefined,
         member_since: parseDateValue(getValue("Lid sinds")),
         receives_mail: parseBoolean(getValue("Ontvangt mail"), true),
         is_board_member: parseBoolean(getValue("Bestuur"), false),
@@ -305,6 +310,7 @@ export function generateTemplateCSV(): string {
     "https://linkedin.com/in/jan",
     "https://instagram.com/jan",
     "https://tiktok.com/@jan",
+    "BE12 3456 7890 1234",
     "2020-01-15",
     "Ja",
     "Nee",

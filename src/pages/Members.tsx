@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { MembersTable } from "@/components/members/MembersTable";
+import { MemberFilters, MemberFiltersState } from "@/components/members/MemberFilters";
 import { CSVImportDialog } from "@/components/members/CSVImportDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMembers } from "@/hooks/useMembers";
+import { useCompanies } from "@/hooks/useCompanies";
 import { exportMembersToCSV, downloadCSV } from "@/lib/csv";
 import { toast } from "sonner";
 import { Search, Plus, Upload, Download } from "lucide-react";
@@ -13,17 +15,78 @@ import { Search, Plus, Upload, Download } from "lucide-react";
 export default function Members() {
   const [search, setSearch] = useState("");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [filters, setFilters] = useState<MemberFiltersState>({
+    status: "all",
+    companyId: "all",
+    city: "all",
+    membershipType: "all",
+  });
+  
   const { data: members = [], isLoading, refetch } = useMembers(search);
+  const { data: companies = [] } = useCompanies();
+
+  // Extract unique cities from members
+  const cities = useMemo(() => {
+    const citySet = new Set<string>();
+    members.forEach((member) => {
+      if (member.city) {
+        citySet.add(member.city);
+      }
+    });
+    return Array.from(citySet).sort();
+  }, [members]);
+
+  // Apply filters
+  const filteredMembers = useMemo(() => {
+    return members.filter((member) => {
+      // Status filter
+      if (filters.status === "active" && !member.is_active) return false;
+      if (filters.status === "inactive" && member.is_active) return false;
+
+      // Company filter
+      if (filters.companyId === "none" && member.company_id) return false;
+      if (filters.companyId !== "all" && filters.companyId !== "none" && member.company_id !== filters.companyId) return false;
+
+      // City filter
+      if (filters.city !== "all" && member.city !== filters.city) return false;
+
+      // Membership type filter
+      if (filters.membershipType !== "all") {
+        switch (filters.membershipType) {
+          case "board":
+            if (!member.is_board_member) return false;
+            break;
+          case "active":
+            if (!member.is_active_member) return false;
+            break;
+          case "ambassador":
+            if (!member.is_ambassador) return false;
+            break;
+          case "donor":
+            if (!member.is_donor) return false;
+            break;
+          case "council":
+            if (!member.is_council_member) return false;
+            break;
+          case "mail":
+            if (!member.receives_mail) return false;
+            break;
+        }
+      }
+
+      return true;
+    });
+  }, [members, filters]);
 
   const handleExport = () => {
-    if (members.length === 0) {
+    if (filteredMembers.length === 0) {
       toast.error("Geen leden om te exporteren");
       return;
     }
-    const csv = exportMembersToCSV(members);
+    const csv = exportMembersToCSV(filteredMembers);
     const date = new Date().toISOString().split("T")[0];
     downloadCSV(csv, `leden_export_${date}.csv`);
-    toast.success(`${members.length} leden geëxporteerd`);
+    toast.success(`${filteredMembers.length} leden geëxporteerd`);
   };
 
   const handleImportClose = (open: boolean) => {
@@ -43,7 +106,7 @@ export default function Members() {
               Leden
             </h1>
             <p className="mt-1 text-muted-foreground">
-              Beheer alle leden van de vzw
+              {filteredMembers.length} van {members.length} leden
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -58,7 +121,7 @@ export default function Members() {
             <Button
               variant="outline"
               onClick={handleExport}
-              disabled={members.length === 0}
+              disabled={filteredMembers.length === 0}
               className="gap-2"
             >
               <Download className="h-4 w-4" />
@@ -84,8 +147,16 @@ export default function Members() {
           />
         </div>
 
+        {/* Filters */}
+        <MemberFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          companies={companies}
+          cities={cities}
+        />
+
         {/* Table */}
-        <MembersTable members={members} isLoading={isLoading} />
+        <MembersTable members={filteredMembers} isLoading={isLoading} />
 
         {/* Import Dialog */}
         <CSVImportDialog

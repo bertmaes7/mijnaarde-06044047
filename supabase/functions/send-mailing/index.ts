@@ -86,8 +86,8 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     // Verify authorization header is present
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      console.error("Missing authorization header");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("Missing or invalid authorization header");
       return new Response(
         JSON.stringify({ error: "Authenticatie vereist" }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -95,8 +95,51 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Create client with user's auth token to verify identity
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
+
+    // Verify the user's JWT and get claims
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getUser(token);
+
+    if (claimsError || !claimsData?.user) {
+      console.error("Invalid JWT:", claimsError);
+      return new Response(
+        JSON.stringify({ error: "Ongeldige authenticatie" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const userId = claimsData.user.id;
+    console.log("Authenticated user:", userId);
+
+    // Create service role client for admin checks and data operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify user has admin role
+    const { data: roleData, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (roleError || !roleData) {
+      console.error("User lacks admin role:", userId, roleError);
+      return new Response(
+        JSON.stringify({ error: "Admin rechten vereist om mailings te versturen" }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log("Admin role verified for user:", userId);
 
     // Get SMTP settings from environment
     const smtpHost = Deno.env.get("SMTP_HOST");

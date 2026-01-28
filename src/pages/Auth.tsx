@@ -3,10 +3,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Leaf, Loader2, Mail, Lock, Sparkles } from "lucide-react";
+import { Leaf, Loader2, Mail, Sparkles } from "lucide-react";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Ongeldig e-mailadres");
@@ -148,18 +149,13 @@ export default function Auth() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="login-password">Wachtwoord</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="login-password"
-                  type="password"
-                  placeholder="••••••••"
-                  className="pl-10"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                />
-              </div>
+              <PasswordInput
+                id="login-password"
+                placeholder="••••••••"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                required
+              />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (

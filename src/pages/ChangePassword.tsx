@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
@@ -62,14 +62,21 @@ export default function ChangePassword() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         // Clear the password_change_required flag
-        await supabase
+        const { error: memberUpdateError } = await supabase
           .from("members")
           .update({ password_change_required: false })
           .eq("auth_user_id", user.id);
+
+        if (memberUpdateError) {
+          console.error("Error updating member:", memberUpdateError);
+        }
       }
 
-      toast.success("Wachtwoord succesvol gewijzigd");
-      navigate("/");
+      toast.success("Wachtwoord succesvol gewijzigd. U wordt uitgelogd om opnieuw in te loggen.");
+      
+      // Sign out and redirect to login - this ensures a clean state
+      await supabase.auth.signOut();
+      navigate("/auth", { replace: true });
     } catch (error) {
       console.error("Error changing password:", error);
       toast.error(error instanceof Error ? error.message : "Fout bij wijzigen wachtwoord");
@@ -100,7 +107,7 @@ export default function ChangePassword() {
                   <FormItem>
                     <FormLabel>Nieuw wachtwoord</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
+                      <PasswordInput placeholder="••••••••" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -114,7 +121,7 @@ export default function ChangePassword() {
                   <FormItem>
                     <FormLabel>Bevestig wachtwoord</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
+                      <PasswordInput placeholder="••••••••" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -35,6 +35,7 @@ import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
 import { SocialMediaFields } from "./SocialMediaFields";
 import { WebsitePreview } from "./WebsitePreview";
 import { MembershipFields } from "./MembershipFields";
+import { TagInput } from "./TagInput";
 import { Save, User, Building2, MapPin, Globe, Calendar, CreditCard, ShieldCheck, Loader2 } from "lucide-react";
 
 const memberSchema = z.object({
@@ -623,6 +624,11 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
           {/* Membership toggles */}
           <div className="lg:col-span-2">
             <MembershipFields control={form.control} />
+          </div>
+
+          {/* Tags */}
+          <div className="lg:col-span-1">
+            <TagInput memberId={member?.id} disabled={isLoading} />
           </div>
 
           {/* Social Media */}

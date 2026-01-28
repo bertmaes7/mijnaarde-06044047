@@ -9,12 +9,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Company } from "@/lib/supabase";
 import { X, Filter } from "lucide-react";
+import { TagFilter } from "./TagFilter";
 
 export interface MemberFiltersState {
   status: "all" | "active" | "inactive";
   companyId: string;
   city: string;
   membershipType: string;
+  tagIds: string[];
 }
 
 interface MemberFiltersProps {
@@ -45,6 +47,7 @@ export function MemberFilters({
     filters.companyId !== "all",
     filters.city !== "all",
     filters.membershipType !== "all",
+    filters.tagIds.length > 0,
   ].filter(Boolean).length;
 
   const handleReset = () => {
@@ -53,6 +56,7 @@ export function MemberFilters({
       companyId: "all",
       city: "all",
       membershipType: "all",
+      tagIds: [],
     });
   };
 
@@ -67,7 +71,7 @@ export function MemberFilters({
           </Badge>
         )}
       </div>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
         <Select
           value={filters.status}
           onValueChange={(value: "all" | "active" | "inactive") =>
@@ -140,6 +144,11 @@ export function MemberFilters({
             ))}
           </SelectContent>
         </Select>
+
+        <TagFilter
+          selectedTagIds={filters.tagIds}
+          onTagsChange={(tagIds) => onFiltersChange({ ...filters, tagIds })}
+        />
 
         {activeFiltersCount > 0 && (
           <Button

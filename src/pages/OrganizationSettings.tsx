@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 // Define the order and grouping of organization fields
 const fieldGroups = {
-  basic: ["org_name", "org_enterprise_number"],
+  basic: ["org_name", "org_enterprise_number", "org_email", "org_phone", "org_website"],
   address: ["org_address", "org_postal_code", "org_city", "org_country"],
   directors: [
     { name: "org_director_1", rrn: "org_director_1_rrn" },

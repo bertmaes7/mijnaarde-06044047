@@ -352,7 +352,17 @@ serve(async (req: Request): Promise<Response> => {
 
   } catch (error: unknown) {
     console.error("Error in create-admin-account:", error);
-    const message = error instanceof Error ? error.message : "Onbekende fout";
+    
+    // Handle Supabase/Postgres errors
+    const pgError = error as { code?: string; message?: string; details?: string };
+    if (pgError.code === "23505") {
+      return new Response(
+        JSON.stringify({ error: "Dit e-mailadres is al gekoppeld aan een ander lid. Controleer op dubbele leden." }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
+    const message = error instanceof Error ? error.message : (pgError.message || "Onbekende fout");
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }

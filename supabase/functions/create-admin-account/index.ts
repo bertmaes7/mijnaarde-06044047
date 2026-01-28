@@ -160,7 +160,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if auth user already exists
+    // Check if auth user already exists on member record
     if (member.auth_user_id) {
       // User already has account, just update the admin flag
       const { error: updateError } = await adminClient
@@ -185,7 +185,48 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Generate temporary password
+    // Check if an auth user with this email already exists (but not linked to member)
+    const { data: existingUsers, error: listError } = await adminClient.auth.admin.listUsers();
+    
+    if (listError) {
+      console.error("Error listing users:", listError);
+      throw listError;
+    }
+
+    const existingAuthUser = existingUsers.users.find(u => u.email === member.email);
+
+    if (existingAuthUser) {
+      // Auth user exists but not linked - link them and make admin
+      const { error: linkError } = await adminClient
+        .from("members")
+        .update({
+          auth_user_id: existingAuthUser.id,
+          is_admin: true,
+        })
+        .eq("id", memberId);
+
+      if (linkError) throw linkError;
+
+      // Add admin role
+      await adminClient.from("user_roles").upsert(
+        [
+          { user_id: existingAuthUser.id, role: "admin" },
+          { user_id: existingAuthUser.id, role: "member" },
+        ],
+        { onConflict: "user_id,role" }
+      );
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Bestaand account gekoppeld en beheerdersrechten toegekend",
+          accountCreated: false,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Generate temporary password for new account
     const tempPassword = generateTemporaryPassword();
 
     // Create auth user

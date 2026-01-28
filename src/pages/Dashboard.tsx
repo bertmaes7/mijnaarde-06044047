@@ -1,4 +1,5 @@
 import { MainLayout } from "@/components/layout/MainLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMembers } from "@/hooks/useMembers";
 import { useCompanies } from "@/hooks/useCompanies";
@@ -40,15 +41,10 @@ export default function Dashboard() {
   return (
     <MainLayout>
       <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground">
-            Dashboard
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Welkom bij Mijn Aarde vzw ledenbeheersysteem
-          </p>
-        </div>
+        <PageHeader
+          title="Dashboard"
+          description="Welkom bij Mijn Aarde vzw ledenbeheersysteem"
+        />
 
         {/* Stats Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

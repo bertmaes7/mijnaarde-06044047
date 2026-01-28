@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Save, Image, Building2, Users, CreditCard, Calendar, Loader2 } from "lucide-react";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   useMailingAssets,
   useUpdateMailingAsset,
@@ -86,15 +87,7 @@ export default function OrganizationSettings() {
   );
 
   const renderCardTitle = (icon: React.ReactNode, title: string) => (
-    <div className="flex items-center gap-3">
-      {logoUrl && (
-        <img 
-          src={logoUrl} 
-          alt="Logo" 
-          className="h-8 w-8 object-contain"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-        />
-      )}
+    <div className="flex items-center gap-2">
       {icon}
       <span>{title}</span>
     </div>
@@ -113,37 +106,24 @@ export default function OrganizationSettings() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header with logo and save button */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            {logoUrl && (
-              <img 
-                src={logoUrl} 
-                alt="Mijn Aarde Logo" 
-                className="h-16 w-16 object-contain rounded-lg border bg-white p-1"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            )}
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Organisatie-instellingen</h1>
-              <p className="text-muted-foreground">
-                Beheer logo en organisatiegegevens van Mijn Aarde vzw
-              </p>
-            </div>
-          </div>
-          <Button 
-            onClick={handleSaveAll} 
-            disabled={!hasChanges || isSaving}
-            size="lg"
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Opslaan
-          </Button>
-        </div>
+        <PageHeader
+          title="Organisatie-instellingen"
+          description="Beheer logo en organisatiegegevens van Mijn Aarde vzw"
+          actions={
+            <Button 
+              onClick={handleSaveAll} 
+              disabled={!hasChanges || isSaving}
+              size="lg"
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Opslaan
+            </Button>
+          }
+        />
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Logo Section */}

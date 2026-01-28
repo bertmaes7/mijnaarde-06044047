@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useIncome, useExpenses } from "@/hooks/useFinance";
 import {
@@ -169,31 +170,26 @@ export default function Finance() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">
-              Financieel Dashboard
-            </h1>
-            <p className="mt-1 text-muted-foreground">
-              Overzicht van inkomsten, uitgaven en saldo
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" className="gap-2">
-              <Link to="/finance/income">
-                <TrendingUp className="h-4 w-4" />
-                Inkomsten
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="gap-2">
-              <Link to="/finance/expenses">
-                <TrendingDown className="h-4 w-4" />
-                Uitgaven
-              </Link>
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Financieel Dashboard"
+          description="Overzicht van inkomsten, uitgaven en saldo"
+          actions={
+            <>
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/finance/income">
+                  <TrendingUp className="h-4 w-4" />
+                  Inkomsten
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/finance/expenses">
+                  <TrendingDown className="h-4 w-4" />
+                  Uitgaven
+                </Link>
+              </Button>
+            </>
+          }
+        />
 
         {/* Date Filter */}
         <Card className="card-elevated">

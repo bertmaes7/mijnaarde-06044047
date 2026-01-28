@@ -329,19 +329,22 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending to ${membersList.length} recipients`);
 
     // Initialize SMTP client
-    console.log(`Connecting to SMTP server: ${smtpHost}:${smtpPort}`);
+    // Port 465 uses implicit TLS, port 587 uses STARTTLS
+    const useTls = smtpPort === 465;
+    console.log(`Connecting to SMTP server: ${smtpHost}:${smtpPort} (TLS: ${useTls})`);
+    
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
         port: smtpPort,
-        tls: false, // Use STARTTLS for port 587 instead of direct TLS
+        tls: useTls,
         auth: {
           username: smtpUser,
           password: smtpPassword,
         },
       },
     });
-    console.log("SMTP client initialized");
+    console.log("SMTP client initialized, attempting to send...");
 
     let successCount = 0;
     let failCount = 0;

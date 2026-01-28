@@ -394,15 +394,27 @@ export default function Tools() {
                   Overzicht van alle beheerders en wachtwoordbeheer
                 </CardDescription>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetchAdmins()}
-                disabled={adminsLoading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${adminsLoading ? "animate-spin" : ""}`} />
-                Vernieuwen
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="default"
+                  size="sm"
+                  asChild
+                >
+                  <Link to="/change-password">
+                    <Key className="h-4 w-4 mr-2" />
+                    Mijn wachtwoord wijzigen
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetchAdmins()}
+                  disabled={adminsLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${adminsLoading ? "animate-spin" : ""}`} />
+                  Vernieuwen
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

@@ -117,6 +117,24 @@ export default function Mailings() {
   const handleSendNow = async (mailingId: string) => {
     setIsSending(true);
     try {
+      // First save any pending changes before sending
+      const scheduledAt = getScheduledDateTime();
+      const saveData = {
+        title: formData.title,
+        template_id: formData.template_id || null,
+        selection_type: formData.selection_type,
+        selected_member_ids: formData.selection_type === "manual" ? formData.selected_member_ids : [],
+        scheduled_at: scheduledAt,
+      };
+
+      const { error: saveError } = await supabase
+        .from("mailings")
+        .update(saveData)
+        .eq("id", mailingId);
+
+      if (saveError) throw saveError;
+
+      // Now send the mailing
       const { data, error } = await supabase.functions.invoke("send-mailing", {
         body: { mailingId },
       });
@@ -129,6 +147,9 @@ export default function Mailings() {
           toast.warning(`${data.failed} e-mails konden niet worden verzonden`);
         }
         refetch();
+        // Go back to list after successful send
+        setSelectedMailing(null);
+        setIsCreating(false);
       } else {
         throw new Error(data.error || "Onbekende fout");
       }

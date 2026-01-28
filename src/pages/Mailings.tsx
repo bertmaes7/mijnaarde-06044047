@@ -210,9 +210,10 @@ export default function Mailings() {
   };
 
   const selectAllFilteredMembers = () => {
+    // Replace selection with only filtered members (not add to existing)
     setFormData((prev) => ({
       ...prev,
-      selected_member_ids: [...new Set([...prev.selected_member_ids, ...filteredMembers.map((m) => m.id)])],
+      selected_member_ids: filteredMembers.map((m) => m.id),
     }));
   };
 
@@ -397,13 +398,13 @@ export default function Mailings() {
                         </span>
                         <div className="flex gap-2 flex-wrap">
                           <Button variant="outline" size="sm" onClick={selectAllFilteredMembers}>
-                            Gefilterde selecteren ({filteredMembers.length})
+                            Alleen gefilterde ({filteredMembers.length})
                           </Button>
                           <Button variant="outline" size="sm" onClick={selectAllMembers}>
-                            Alle actieve
+                            Alle actieve ({membersWithEmail.filter((m) => m.is_active).length})
                           </Button>
                           <Button variant="outline" size="sm" onClick={deselectAllMembers}>
-                            Niets
+                            Selectie wissen
                           </Button>
                         </div>
                       </div>

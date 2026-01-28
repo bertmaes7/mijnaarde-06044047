@@ -511,6 +511,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_linked_to_company: { Args: { _company_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "member"

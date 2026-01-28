@@ -47,6 +47,97 @@ export function useMember(id: string | undefined) {
   });
 }
 
+// Check if email already exists (case-insensitive)
+export function useCheckEmailExists() {
+  return useMutation({
+    mutationFn: async ({ email, excludeMemberId }: { email: string; excludeMemberId?: string }) => {
+      if (!email) return false;
+      
+      let query = supabase
+        .from("members")
+        .select("id, first_name, last_name")
+        .ilike("email", email);
+      
+      if (excludeMemberId) {
+        query = query.neq("id", excludeMemberId);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      return data && data.length > 0 ? data[0] : null;
+    },
+  });
+}
+
+// Find duplicate emails
+export function useDuplicateEmails() {
+  return useQuery({
+    queryKey: ["duplicate-emails"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("members")
+        .select("id, first_name, last_name, email")
+        .not("email", "is", null)
+        .order("email", { ascending: true });
+      
+      if (error) throw error;
+      
+      // Group by lowercase email and find duplicates
+      const emailMap = new Map<string, typeof data>();
+      for (const member of data || []) {
+        const lowerEmail = member.email!.toLowerCase();
+        if (!emailMap.has(lowerEmail)) {
+          emailMap.set(lowerEmail, []);
+        }
+        emailMap.get(lowerEmail)!.push(member);
+      }
+      
+      // Return only duplicates
+      const duplicates: { email: string; members: typeof data }[] = [];
+      for (const [email, members] of emailMap) {
+        if (members.length > 1) {
+          duplicates.push({ email, members });
+        }
+      }
+      
+      return duplicates;
+    },
+  });
+}
+
+// Bulk update members
+export function useBulkUpdateMembers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      memberIds, 
+      field, 
+      value 
+    }: { 
+      memberIds: string[]; 
+      field: string; 
+      value: boolean | string | null;
+    }) => {
+      const { error } = await supabase
+        .from("members")
+        .update({ [field]: value })
+        .in("id", memberIds);
+      
+      if (error) throw error;
+      return memberIds.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      toast.success(`${count} leden bijgewerkt`);
+    },
+    onError: () => {
+      toast.error("Fout bij het bijwerken van leden");
+    },
+  });
+}
+
 export function useUpdateMember() {
   const queryClient = useQueryClient();
 

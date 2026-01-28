@@ -28,6 +28,7 @@ import { useCompanies } from "@/hooks/useCompanies";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCheckEmailExists } from "@/hooks/useMembers";
 import { toast } from "sonner";
 import { MemberAvatar } from "./MemberAvatar";
 import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
@@ -80,6 +81,8 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
   const queryClient = useQueryClient();
   const [photoUrl, setPhotoUrl] = useState<string | null>(member?.profile_photo_url || null);
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const checkEmailExists = useCheckEmailExists();
   
   const isOwnAccount = user?.id === member?.auth_user_id;
   const canCreateAccount = !!member?.email;
@@ -162,7 +165,40 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
     form.setValue("profile_photo_url", url || "");
   };
 
-  const handleSubmit = (data: MemberFormData) => {
+  // Check for duplicate email when email field loses focus
+  const handleEmailBlur = async (email: string) => {
+    setEmailError(null);
+    if (!email) return;
+    
+    try {
+      const existing = await checkEmailExists.mutateAsync({ 
+        email, 
+        excludeMemberId: member?.id 
+      });
+      
+      if (existing) {
+        setEmailError(`Dit e-mailadres is al in gebruik door ${existing.first_name} ${existing.last_name}`);
+      }
+    } catch (error) {
+      console.error("Error checking email:", error);
+    }
+  };
+
+  const handleSubmit = async (data: MemberFormData) => {
+    // Check for duplicate email before submitting
+    if (data.email) {
+      const existing = await checkEmailExists.mutateAsync({ 
+        email: data.email, 
+        excludeMemberId: member?.id 
+      });
+      
+      if (existing) {
+        setEmailError(`Dit e-mailadres is al in gebruik door ${existing.first_name} ${existing.last_name}`);
+        toast.error("Dit e-mailadres is al in gebruik");
+        return;
+      }
+    }
+    
     // Convert empty strings to null/undefined for optional fields
     const cleanedData = {
       ...data,
@@ -333,9 +369,20 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                         type="email"
                         placeholder="jan@voorbeeld.be"
                         {...field}
+                        onBlur={(e) => {
+                          field.onBlur();
+                          handleEmailBlur(e.target.value);
+                        }}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setEmailError(null);
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
+                    {emailError && (
+                      <p className="text-sm font-medium text-destructive">{emailError}</p>
+                    )}
                   </FormItem>
                 )}
               />

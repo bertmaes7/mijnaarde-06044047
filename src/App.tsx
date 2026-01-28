@@ -23,6 +23,7 @@ import Mailings from "./pages/Mailings";
 import Events from "./pages/Events";
 import EventRegistrations from "./pages/EventRegistrations";
 import PublicEvent from "./pages/PublicEvent";
+import Tools from "./pages/Tools";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -159,6 +160,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <EventRegistrations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tools"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Tools />
                 </ProtectedRoute>
               }
             />

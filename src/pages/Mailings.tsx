@@ -550,10 +550,10 @@ export default function Mailings() {
                         ) : (
                           <Send className="h-4 w-4 mr-2" />
                         )}
-                        Nu versturen
+                        Nu versturen ({recipientCount})
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent>
+                    <AlertDialogContent key={`send-dialog-${recipientCount}`}>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Mailing nu versturen?</AlertDialogTitle>
                         <AlertDialogDescription>

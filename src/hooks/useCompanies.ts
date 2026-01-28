@@ -85,3 +85,21 @@ export function useUpdateCompany() {
     },
   });
 }
+
+export function useDeleteCompany() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("companies").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      toast.success("Bedrijf succesvol verwijderd");
+    },
+    onError: () => {
+      toast.error("Fout bij het verwijderen van bedrijf");
+    },
+  });
+}

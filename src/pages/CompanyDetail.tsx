@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useCompany, useUpdateCompany } from "@/hooks/useCompanies";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useCompany, useUpdateCompany, useDeleteCompany } from "@/hooks/useCompanies";
 import { useMembers } from "@/hooks/useMembers";
 import { MemberAvatar } from "@/components/members/MemberAvatar";
 import { WebsitePreview } from "@/components/members/WebsitePreview";
@@ -45,6 +56,7 @@ import {
   Users,
   Truck,
   Pencil,
+  Trash2,
 } from "lucide-react";
 
 const companySchema = z.object({
@@ -67,8 +79,10 @@ type CompanyFormData = z.infer<typeof companySchema>;
 export default function CompanyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { data: company, isLoading } = useCompany(id);
   const updateCompany = useUpdateCompany();
+  const deleteCompany = useDeleteCompany();
   const { data: allMembers = [] } = useMembers("");
 
   // Filter members belonging to this company
@@ -148,6 +162,12 @@ export default function CompanyDetail() {
 
   const handleBack = () => {
     handleNavigate(() => navigate("/companies"));
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    await deleteCompany.mutateAsync(id);
+    navigate("/companies");
   };
 
   const websiteUrl = form.watch("website");
@@ -505,7 +525,16 @@ export default function CompanyDetail() {
               </Card>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-between">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Verwijderen
+              </Button>
               <Button type="submit" disabled={updateCompany.isPending} className="gap-2">
                 <Save className="h-4 w-4" />
                 {updateCompany.isPending ? "Opslaan..." : "Opslaan"}
@@ -513,6 +542,31 @@ export default function CompanyDetail() {
             </div>
           </form>
         </Form>
+
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Bedrijf verwijderen?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Weet je zeker dat je "{company.name}" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.
+                {companyMembers.length > 0 && (
+                  <span className="block mt-2 text-destructive">
+                    Let op: Er zijn nog {companyMembers.length} lid(en) gekoppeld aan dit bedrijf. Hun koppeling wordt verbroken.
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuleren</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteCompany.isPending ? "Verwijderen..." : "Verwijderen"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </MainLayout>
   );

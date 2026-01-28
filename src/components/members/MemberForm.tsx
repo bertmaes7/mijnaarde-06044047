@@ -22,14 +22,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Member } from "@/lib/supabase";
 import { useCompanies } from "@/hooks/useCompanies";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { MemberAvatar } from "./MemberAvatar";
 import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
 import { SocialMediaFields } from "./SocialMediaFields";
 import { WebsitePreview } from "./WebsitePreview";
 import { MembershipFields } from "./MembershipFields";
-import { Save, User, Building2, MapPin, Globe, Calendar, CreditCard } from "lucide-react";
+import { Save, User, Building2, MapPin, Globe, Calendar, CreditCard, ShieldCheck, Loader2 } from "lucide-react";
 
 const memberSchema = z.object({
   first_name: z.string().min(1, "Voornaam is verplicht"),
@@ -71,7 +76,14 @@ interface MemberFormProps {
 
 export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: MemberFormProps) {
   const { data: companies = [] } = useCompanies();
+  const { isAdmin: currentUserIsAdmin, user } = useAuthContext();
+  const queryClient = useQueryClient();
   const [photoUrl, setPhotoUrl] = useState<string | null>(member?.profile_photo_url || null);
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+  
+  const isOwnAccount = user?.id === member?.auth_user_id;
+  const canCreateAccount = !!member?.email;
+  const isExistingMember = !!member?.id;
 
   const form = useForm<MemberFormData>({
     resolver: zodResolver(memberSchema),
@@ -173,6 +185,75 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
       member_since: data.member_since || undefined,
     };
     onSubmit(cleanedData);
+  };
+
+  // Admin role toggle mutation
+  const toggleAdminRole = useMutation({
+    mutationFn: async (shouldBeAdmin: boolean) => {
+      if (!member?.id) throw new Error("Member ID required");
+      
+      if (shouldBeAdmin && !member.auth_user_id) {
+        // Need to create admin account via edge function
+        const { data, error } = await supabase.functions.invoke("create-admin-account", {
+          body: { memberId: member.id },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        return data;
+      } else {
+        // Just update the is_admin flag
+        const { error: memberError } = await supabase
+          .from("members")
+          .update({ is_admin: shouldBeAdmin })
+          .eq("id", member.id);
+        if (memberError) throw memberError;
+
+        // If member has an auth account, also update user_roles
+        if (member.auth_user_id) {
+          if (shouldBeAdmin) {
+            const { error } = await supabase
+              .from("user_roles")
+              .insert({ user_id: member.auth_user_id, role: "admin" as const });
+            if (error && !error.message.includes("duplicate")) throw error;
+          } else {
+            const { error } = await supabase
+              .from("user_roles")
+              .delete()
+              .eq("user_id", member.auth_user_id)
+              .eq("role", "admin");
+            if (error) throw error;
+          }
+        }
+        return { success: true, accountCreated: false };
+      }
+    },
+    onMutate: () => setIsUpdatingRole(true),
+    onSuccess: (data, shouldBeAdmin) => {
+      queryClient.invalidateQueries({ queryKey: ["member", member?.id] });
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-user-ids"] });
+
+      if (data?.accountCreated && data.tempPassword) {
+        toast.success(`Beheerdersaccount aangemaakt. Wachtwoord: ${data.tempPassword}`);
+      } else if (shouldBeAdmin) {
+        toast.success("Beheerder-rol toegekend");
+      } else {
+        toast.success("Beheerder-rol verwijderd");
+      }
+    },
+    onError: (error) => {
+      console.error("Error updating role:", error);
+      toast.error(error instanceof Error ? error.message : "Fout bij het bijwerken van de rol");
+    },
+    onSettled: () => setIsUpdatingRole(false),
+  });
+
+  const handleAdminToggle = (checked: boolean) => {
+    if (!canCreateAccount && checked && !member?.auth_user_id) {
+      toast.error("Lid heeft geen e-mailadres. Voeg eerst een e-mailadres toe.");
+      return;
+    }
+    toggleAdminRole.mutate(checked);
   };
 
   const firstName = form.watch("first_name");
@@ -367,7 +448,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
             </CardContent>
           </Card>
 
-          {/* Bank Account */}
+          {/* Bank Account + Admin Toggle */}
           <Card className="lg:col-span-1 card-elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -375,7 +456,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                 Financieel
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <FormField
                 control={form.control}
                 name="bank_account"
@@ -389,6 +470,37 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                   </FormItem>
                 )}
               />
+
+              {/* Admin toggle - only visible to admins for existing members */}
+              {currentUserIsAdmin && isExistingMember && (
+                <div className="pt-4 border-t">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="admin-role" className="text-sm font-medium flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                        Beheerder
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Toegang tot ledenbeheer en instellingen
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isUpdatingRole && <Loader2 className="h-4 w-4 animate-spin" />}
+                      <Switch
+                        id="admin-role"
+                        checked={member?.is_admin ?? false}
+                        onCheckedChange={handleAdminToggle}
+                        disabled={isUpdatingRole || isOwnAccount}
+                      />
+                    </div>
+                  </div>
+                  {isOwnAccount && (
+                    <p className="text-xs text-amber-600 mt-2">
+                      Je kunt je eigen beheerder-rol niet wijzigen.
+                    </p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card className="lg:col-span-1 card-elevated">

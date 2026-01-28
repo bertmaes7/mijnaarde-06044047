@@ -147,7 +147,8 @@ export default function MemberDetail() {
         {!isNew && member && (
           <RoleManagement 
             memberId={member.id} 
-            authUserId={member.auth_user_id || null} 
+            authUserId={member.auth_user_id || null}
+            isAdmin={member.is_admin ?? false}
           />
         )}
 

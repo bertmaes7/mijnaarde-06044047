@@ -37,6 +37,7 @@ export type Member = {
   profile_photo_url: string | null;
   notes: string | null;
   is_active: boolean;
+  is_admin: boolean;
   facebook_url: string | null;
   linkedin_url: string | null;
   instagram_url: string | null;

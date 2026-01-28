@@ -287,6 +287,33 @@ serve(async (req: Request): Promise<Response> => {
           );
         }
 
+        // Before linking, check if there's ANOTHER member with this auth_user_id
+        // This can happen when the handle_new_user trigger creates a duplicate member
+        const { data: conflictingMembers } = await adminClient
+          .from("members")
+          .select("id, first_name, last_name, email")
+          .eq("auth_user_id", existingAuthUser.id);
+        
+        if (conflictingMembers && conflictingMembers.length > 0) {
+          const otherMember = conflictingMembers.find(m => m.id !== memberId);
+          if (otherMember) {
+            // Delete the auto-created duplicate member (created by handle_new_user trigger)
+            // if it has the same email as the one we're trying to link
+            if (otherMember.email?.toLowerCase() === member.email.toLowerCase()) {
+              console.log(`Removing auto-created duplicate member: ${otherMember.id}`);
+              await adminClient.from("members").delete().eq("id", otherMember.id);
+            } else {
+              // Different email - this is a real conflict
+              return new Response(
+                JSON.stringify({ 
+                  error: `Dit e-mailadres heeft al een account dat gekoppeld is aan een ander lid (${otherMember.first_name} ${otherMember.last_name}). Gebruik de duplicaten-checker in Tools.` 
+                }),
+                { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+              );
+            }
+          }
+        }
+
         // Link existing auth user to this member
         const { error: linkError } = await adminClient
           .from("members")
@@ -298,10 +325,21 @@ serve(async (req: Request): Promise<Response> => {
 
         if (linkError) {
           console.error("Error linking member:", linkError);
-          // Check if it's a duplicate key error
           if (linkError.code === "23505") {
+            // Still a conflict - fetch details for better error message
+            const { data: conflictMember } = await adminClient
+              .from("members")
+              .select("first_name, last_name")
+              .eq("auth_user_id", existingAuthUser.id)
+              .neq("id", memberId)
+              .single();
+            
+            const conflictName = conflictMember 
+              ? `${conflictMember.first_name} ${conflictMember.last_name}`
+              : "een ander lid";
+            
             return new Response(
-              JSON.stringify({ error: "Dit e-mailadres is al gekoppeld aan een ander lid. Controleer op dubbele leden." }),
+              JSON.stringify({ error: `Dit e-mailadres is al gekoppeld aan ${conflictName}. Verwijder het dubbele lid via Tools.` }),
               { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
             );
           }

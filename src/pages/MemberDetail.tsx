@@ -20,7 +20,7 @@ import {
   useCreateMember,
   useDeleteMember,
 } from "@/hooks/useMembers";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2, Save } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MemberDetail() {
@@ -83,31 +83,43 @@ export default function MemberDetail() {
             </div>
           </div>
 
-          {!isNew && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" className="gap-2">
-                  <Trash2 className="h-4 w-4" />
-                  Verwijderen
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Lid verwijderen?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Weet je zeker dat je dit lid wilt verwijderen? Deze actie
-                    kan niet ongedaan worden gemaakt.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>
+          <div className="flex items-center gap-2">
+            <Button
+              type="submit"
+              form="member-form"
+              disabled={updateMember.isPending || createMember.isPending}
+              className="gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {updateMember.isPending || createMember.isPending ? "Opslaan..." : "Opslaan"}
+            </Button>
+
+            {!isNew && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" className="gap-2">
+                    <Trash2 className="h-4 w-4" />
                     Verwijderen
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Lid verwijderen?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Weet je zeker dat je dit lid wilt verwijderen? Deze actie
+                      kan niet ongedaan worden gemaakt.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>
+                      Verwijderen
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </div>
 
         {/* Role Management - only for existing members */}

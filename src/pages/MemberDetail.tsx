@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { MemberForm } from "@/components/members/MemberForm";
@@ -20,6 +21,8 @@ import {
   useCreateMember,
   useDeleteMember,
 } from "@/hooks/useMembers";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
+import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { ArrowLeft, Trash2, Save } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -27,19 +30,33 @@ export default function MemberDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = id === "new";
+  const [isDirty, setIsDirty] = useState(false);
 
   const { data: member, isLoading } = useMember(isNew ? undefined : id);
   const updateMember = useUpdateMember();
   const createMember = useCreateMember();
   const deleteMember = useDeleteMember();
 
+  const {
+    showDialog,
+    handleNavigate,
+    confirmNavigation,
+    cancelNavigation,
+  } = useUnsavedChangesWarning({ isDirty });
+
   const handleSubmit = async (data: any) => {
     if (isNew) {
       const result = await createMember.mutateAsync(data);
+      setIsDirty(false);
       navigate(`/members/${result.id}`);
     } else if (id) {
       await updateMember.mutateAsync({ id, data });
+      setIsDirty(false);
     }
+  };
+
+  const handleBack = () => {
+    handleNavigate(() => navigate("/members"));
   };
 
   const handleDelete = async () => {
@@ -62,14 +79,18 @@ export default function MemberDetail() {
 
   return (
     <MainLayout>
+      <UnsavedChangesDialog
+        open={showDialog}
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
+      />
+
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button asChild variant="ghost" size="icon">
-              <Link to="/members">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
+            <Button variant="ghost" size="icon" onClick={handleBack}>
+              <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
               <h1 className="font-display text-3xl font-bold text-foreground">
@@ -135,6 +156,7 @@ export default function MemberDetail() {
           member={member}
           onSubmit={handleSubmit}
           isLoading={updateMember.isPending || createMember.isPending}
+          onDirtyChange={setIsDirty}
         />
       </div>
     </MainLayout>

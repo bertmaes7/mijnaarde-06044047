@@ -201,6 +201,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "expenses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "expenses_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
@@ -252,6 +259,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "income_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
           {
@@ -438,7 +452,6 @@ export type Database = {
           postal_code: string | null
           profile_photo_url: string | null
           receives_mail: boolean | null
-          temp_password_hash: string | null
           tiktok_url: string | null
           updated_at: string | null
         }
@@ -473,7 +486,6 @@ export type Database = {
           postal_code?: string | null
           profile_photo_url?: string | null
           receives_mail?: boolean | null
-          temp_password_hash?: string | null
           tiktok_url?: string | null
           updated_at?: string | null
         }
@@ -508,7 +520,6 @@ export type Database = {
           postal_code?: string | null
           profile_photo_url?: string | null
           receives_mail?: boolean | null
-          temp_password_hash?: string | null
           tiktok_url?: string | null
           updated_at?: string | null
         }
@@ -518,6 +529,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
         ]
@@ -563,7 +581,51 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      companies_public: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          email: string | null
+          id: string | null
+          is_supplier: boolean | null
+          name: string | null
+          phone: string | null
+          postal_code: string | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+          is_supplier?: boolean | null
+          name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+          is_supplier?: boolean | null
+          name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_my_member_id: { Args: never; Returns: string }

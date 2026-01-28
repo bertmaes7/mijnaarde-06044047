@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, Building2, LayoutDashboard, Leaf, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, FileCode, Send, Calendar, Wrench } from "lucide-react";
+import { Users, Building2, LayoutDashboard, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, FileCode, Send, Calendar, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -10,6 +10,7 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { OrganizationLogo } from "./OrganizationLogo";
 
 const mainNavItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -48,9 +49,7 @@ export function Sidebar() {
       <div className="flex h-full flex-col">
         {/* Logo */}
         <div className="flex h-20 items-center gap-3 border-b border-sidebar-border px-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-earth">
-            <Leaf className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <OrganizationLogo size="md" />
           <div>
             <h1 className="font-display text-lg font-bold text-sidebar-foreground">
               Mijn Aarde

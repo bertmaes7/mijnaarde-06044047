@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { MembersTable } from "@/components/members/MembersTable";
 import { MemberFilters, MemberFiltersState } from "@/components/members/MemberFilters";
 import { CSVImportDialog } from "@/components/members/CSVImportDialog";
@@ -99,42 +100,37 @@ export default function Members() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">
-              Leden
-            </h1>
-            <p className="mt-1 text-muted-foreground">
-              {filteredMembers.length} van {members.length} leden
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setImportDialogOpen(true)}
-              className="gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Importeren
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleExport}
-              disabled={filteredMembers.length === 0}
-              className="gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Exporteren
-            </Button>
-            <Button asChild className="gap-2">
-              <Link to="/members/new">
-                <Plus className="h-4 w-4" />
-                Nieuw lid
-              </Link>
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Leden"
+          description={`${filteredMembers.length} van ${members.length} leden`}
+          actions={
+            <>
+              <Button
+                variant="outline"
+                onClick={() => setImportDialogOpen(true)}
+                className="gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Importeren
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExport}
+                disabled={filteredMembers.length === 0}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Exporteren
+              </Button>
+              <Button asChild className="gap-2">
+                <Link to="/members/new">
+                  <Plus className="h-4 w-4" />
+                  Nieuw lid
+                </Link>
+              </Button>
+            </>
+          }
+        />
 
         {/* Search */}
         <div className="relative max-w-md">

@@ -104,6 +104,11 @@ interface MailingAsset {
   value: string;
 }
 
+function normalizeCRLF(content: string): string {
+  // Replace all line endings with CRLF as required by RFC 822
+  return content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '\r\n');
+}
+
 function replacePlaceholders(content: string, member: Member, assets: MailingAsset[]): string {
   let result = content;
   
@@ -119,7 +124,8 @@ function replacePlaceholders(content: string, member: Member, assets: MailingAss
     result = result.replace(regex, asset.value);
   }
   
-  return result;
+  // Normalize line endings to CRLF for SMTP compliance
+  return normalizeCRLF(result);
 }
 
 const handler = async (req: Request): Promise<Response> => {

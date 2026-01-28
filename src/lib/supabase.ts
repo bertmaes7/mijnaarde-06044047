@@ -38,6 +38,7 @@ export type Member = {
   notes: string | null;
   is_active: boolean;
   is_admin: boolean;
+  password_change_required: boolean;
   facebook_url: string | null;
   linkedin_url: string | null;
   instagram_url: string | null;

@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Auth from "./pages/Auth";
+import ChangePassword from "./pages/ChangePassword";
 import MemberPortal from "./pages/MemberPortal";
 import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
@@ -36,6 +37,7 @@ const App = () => (
           <Routes>
             {/* Public routes */}
             <Route path="/auth" element={<Auth />} />
+            <Route path="/change-password" element={<ChangePassword />} />
             <Route path="/events/:id" element={<PublicEvent />} />
             {/* Member portal (logged in members) */}
             <Route

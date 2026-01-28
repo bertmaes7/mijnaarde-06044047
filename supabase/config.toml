@@ -1,1 +1,7 @@
 project_id = "ejxdsuvutluetnaiklmx"
+
+[functions.send-mailing]
+verify_jwt = false
+
+[functions.create-admin-account]
+verify_jwt = false

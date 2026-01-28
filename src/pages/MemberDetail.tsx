@@ -149,6 +149,7 @@ export default function MemberDetail() {
             memberId={member.id} 
             authUserId={member.auth_user_id || null}
             isAdmin={member.is_admin ?? false}
+            memberEmail={member.email}
           />
         )}
 

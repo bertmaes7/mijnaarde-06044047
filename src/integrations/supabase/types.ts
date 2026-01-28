@@ -396,11 +396,13 @@ export type Database = {
           member_since: string | null
           mobile: string | null
           notes: string | null
+          password_change_required: boolean
           personal_url: string | null
           phone: string | null
           postal_code: string | null
           profile_photo_url: string | null
           receives_mail: boolean | null
+          temp_password_hash: string | null
           tiktok_url: string | null
           updated_at: string | null
         }
@@ -429,11 +431,13 @@ export type Database = {
           member_since?: string | null
           mobile?: string | null
           notes?: string | null
+          password_change_required?: boolean
           personal_url?: string | null
           phone?: string | null
           postal_code?: string | null
           profile_photo_url?: string | null
           receives_mail?: boolean | null
+          temp_password_hash?: string | null
           tiktok_url?: string | null
           updated_at?: string | null
         }
@@ -462,11 +466,13 @@ export type Database = {
           member_since?: string | null
           mobile?: string | null
           notes?: string | null
+          password_change_required?: boolean
           personal_url?: string | null
           phone?: string | null
           postal_code?: string | null
           profile_photo_url?: string | null
           receives_mail?: boolean | null
+          temp_password_hash?: string | null
           tiktok_url?: string | null
           updated_at?: string | null
         }

@@ -86,7 +86,7 @@ export default function Mailings() {
   // Get all members with email for mailing
   const membersWithEmail = members?.filter((m) => m.email) || [];
   
-  // Apply filters to get filtered members
+  // Apply filters to get filtered members, but always include selected members
   const filteredMembers = useMemo(() => {
     let result = applyRecipientFilters(membersWithEmail, recipientFilters);
     
@@ -102,6 +102,26 @@ export default function Mailings() {
     
     return result;
   }, [membersWithEmail, recipientFilters, memberSearch]);
+
+  // Sort members: selected first, then by name
+  const sortedFilteredMembers = useMemo(() => {
+    return [...filteredMembers].sort((a, b) => {
+      const aSelected = formData.selected_member_ids.includes(a.id);
+      const bSelected = formData.selected_member_ids.includes(b.id);
+      
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      
+      // Both selected or both not selected - sort by name
+      return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+    });
+  }, [filteredMembers, formData.selected_member_ids]);
+
+  // Count of selected members that are NOT in the current filter view
+  const hiddenSelectedCount = useMemo(() => {
+    const filteredIds = new Set(filteredMembers.map(m => m.id));
+    return formData.selected_member_ids.filter(id => !filteredIds.has(id)).length;
+  }, [filteredMembers, formData.selected_member_ids]);
 
   // Get unique cities for filter
   const cities = useMemo(() => {
@@ -184,6 +204,14 @@ export default function Mailings() {
   const handleEdit = (mailing: Mailing) => {
     setSelectedMailing(mailing);
     setIsCreating(false);
+    setMemberSearch("");
+    // Reset filters when opening a mailing
+    setRecipientFilters({
+      status: "all",
+      companyId: "all",
+      city: "all",
+      membershipType: "all",
+    });
     const scheduledDate = mailing.scheduled_at ? new Date(mailing.scheduled_at) : null;
     setFormData({
       title: mailing.title,
@@ -392,10 +420,17 @@ export default function Mailings() {
                       </div>
 
                       {/* Selection controls */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          {formData.selected_member_ids.length} geselecteerd van {filteredMembers.length} gefilterde leden
-                        </span>
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm text-muted-foreground">
+                            {formData.selected_member_ids.length} geselecteerd van {filteredMembers.length} gefilterde leden
+                          </span>
+                          {hiddenSelectedCount > 0 && (
+                            <span className="text-sm text-amber-600">
+                              ⚠ {hiddenSelectedCount} geselecteerde leden vallen buiten huidige filters
+                            </span>
+                          )}
+                        </div>
                         <div className="flex gap-2 flex-wrap">
                           <Button variant="outline" size="sm" onClick={selectAllFilteredMembers}>
                             Alleen gefilterde ({filteredMembers.length})
@@ -412,41 +447,47 @@ export default function Mailings() {
                       {/* Member list */}
                       <ScrollArea className="h-[300px] border rounded-lg p-4">
                         <div className="space-y-2">
-                          {filteredMembers.length === 0 ? (
+                          {sortedFilteredMembers.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-4">
                               Geen leden gevonden met de huidige filters
                             </p>
                           ) : (
-                            filteredMembers.map((member) => (
-                              <div
-                                key={member.id}
-                                className="flex items-center space-x-3 py-2 border-b last:border-0"
-                              >
-                                <Checkbox
-                                  id={member.id}
-                                  checked={formData.selected_member_ids.includes(member.id)}
-                                  onCheckedChange={() => toggleMember(member.id)}
-                                />
-                                <Label htmlFor={member.id} className="flex-1 font-normal cursor-pointer">
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-                                    <span className="font-medium">
-                                      {member.first_name} {member.last_name}
-                                    </span>
-                                    <span className="text-muted-foreground text-sm">{member.email}</span>
-                                    {member.city && (
-                                      <Badge variant="outline" className="text-xs w-fit">
-                                        {member.city}
-                                      </Badge>
-                                    )}
-                                    {!member.is_active && (
-                                      <Badge variant="secondary" className="text-xs w-fit">
-                                        Inactief
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </Label>
-                              </div>
-                            ))
+                            sortedFilteredMembers.map((member) => {
+                              const isSelected = formData.selected_member_ids.includes(member.id);
+                              return (
+                                <div
+                                  key={member.id}
+                                  className={cn(
+                                    "flex items-center space-x-3 py-2 border-b last:border-0",
+                                    isSelected && "bg-primary/5 -mx-2 px-2 rounded"
+                                  )}
+                                >
+                                  <Checkbox
+                                    id={member.id}
+                                    checked={isSelected}
+                                    onCheckedChange={() => toggleMember(member.id)}
+                                  />
+                                  <Label htmlFor={member.id} className="flex-1 font-normal cursor-pointer">
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                                      <span className="font-medium">
+                                        {member.first_name} {member.last_name}
+                                      </span>
+                                      <span className="text-muted-foreground text-sm">{member.email}</span>
+                                      {member.city && (
+                                        <Badge variant="outline" className="text-xs w-fit">
+                                          {member.city}
+                                        </Badge>
+                                      )}
+                                      {!member.is_active && (
+                                        <Badge variant="secondary" className="text-xs w-fit">
+                                          Inactief
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </Label>
+                                </div>
+                              );
+                            })
                           )}
                         </div>
                       </ScrollArea>

@@ -11,6 +11,7 @@ interface AuthState {
   roles: AppRole[];
   isAdmin: boolean;
   memberId: string | null;
+  passwordChangeRequired: boolean;
 }
 
 export function useAuth() {
@@ -21,6 +22,7 @@ export function useAuth() {
     roles: [],
     isAdmin: false,
     memberId: null,
+    passwordChangeRequired: false,
   });
 
   const fetchUserData = useCallback(async (userId: string) => {
@@ -33,10 +35,10 @@ export function useAuth() {
 
       const roles = (rolesData || []).map((r) => r.role as AppRole);
 
-      // Fetch member ID
+      // Fetch member data including password_change_required
       const { data: memberData } = await supabase
         .from("members")
-        .select("id")
+        .select("id, password_change_required")
         .eq("auth_user_id", userId)
         .maybeSingle();
 
@@ -45,6 +47,7 @@ export function useAuth() {
         roles,
         isAdmin: roles.includes("admin"),
         memberId: memberData?.id || null,
+        passwordChangeRequired: memberData?.password_change_required ?? false,
         isLoading: false,
       }));
     } catch (error) {
@@ -75,6 +78,7 @@ export function useAuth() {
           roles: [],
           isAdmin: false,
           memberId: null,
+          passwordChangeRequired: false,
           isLoading: false,
         }));
       }

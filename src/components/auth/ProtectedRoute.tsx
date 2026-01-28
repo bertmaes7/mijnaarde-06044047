@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { user, isLoading, isAdmin } = useAuthContext();
+  const { user, isLoading, isAdmin, passwordChangeRequired } = useAuthContext();
   const location = useLocation();
 
   if (isLoading) {
@@ -24,8 +24,14 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
+  // Redirect to password change if required (but not if already on that page)
+  if (passwordChangeRequired && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" replace />;
+  }
+
   if (requireAdmin && !isAdmin) {
-    return <Navigate to="/member" replace />;
+    // Non-admins cannot access admin routes - redirect to auth
+    return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;

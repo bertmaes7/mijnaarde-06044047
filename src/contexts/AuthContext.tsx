@@ -9,6 +9,7 @@ interface AuthContextType {
   roles: AppRole[];
   isAdmin: boolean;
   memberId: string | null;
+  passwordChangeRequired: boolean;
   signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: Error | null }>;
@@ -22,6 +23,7 @@ const defaultAuthContext: AuthContextType = {
   roles: [],
   isAdmin: false,
   memberId: null,
+  passwordChangeRequired: false,
   signInWithPassword: async () => ({ error: null }),
   signInWithMagicLink: async () => ({ error: null }),
   signUp: async () => ({ error: null }),

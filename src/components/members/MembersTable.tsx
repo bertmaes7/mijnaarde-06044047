@@ -12,11 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MemberAvatar } from "./MemberAvatar";
 import { Member } from "@/lib/supabase";
-import { ExternalLink, Mail, Phone, Pencil, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ExternalLink, Mail, Phone, Pencil, ArrowUpDown, ArrowUp, ArrowDown, ShieldCheck } from "lucide-react";
 
 interface MembersTableProps {
   members: Member[];
   isLoading: boolean;
+  adminUserIds?: string[];
 }
 
 type SortField = "name" | "company" | "city" | "email" | "status" | "member_since";
@@ -61,8 +62,12 @@ function SortableHeader({
   );
 }
 
-export function MembersTable({ members, isLoading }: MembersTableProps) {
+export function MembersTable({ members, isLoading, adminUserIds = [] }: MembersTableProps) {
   const [sort, setSort] = useState<SortState>({ field: "name", direction: "asc" });
+
+  const isAdmin = (member: Member) => {
+    return member.auth_user_id && adminUserIds.includes(member.auth_user_id);
+  };
 
   const handleSort = (field: SortField) => {
     setSort((prev) => ({
@@ -169,9 +174,17 @@ export function MembersTable({ members, isLoading }: MembersTableProps) {
                     size="md"
                   />
                   <div>
-                    <p className="font-medium">
-                      {member.first_name} {member.last_name}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">
+                        {member.first_name} {member.last_name}
+                      </p>
+                      {isAdmin(member) && (
+                        <Badge variant="default" className="gap-1 text-xs">
+                          <ShieldCheck className="h-3 w-3" />
+                          Admin
+                        </Badge>
+                      )}
+                    </div>
                     {member.personal_url && (
                       <a
                         href={member.personal_url}

@@ -185,78 +185,10 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if an auth user with this email already exists (but not linked to member)
-    // Use getUserByEmail for direct lookup instead of listing all users
-    const { data: existingUserData, error: getUserError } = await adminClient.auth.admin.getUserById(
-      // First we need to find by email - listUsers with filter
-      ""
-    ).catch(() => ({ data: null, error: null }));
-
-    // Try to find user by email using listUsers with per_page to get more results
-    let existingAuthUser = null;
-    let page = 1;
-    const perPage = 1000;
-    
-    while (true) {
-      const { data: usersPage, error: pageError } = await adminClient.auth.admin.listUsers({
-        page,
-        perPage,
-      });
-      
-      if (pageError) {
-        console.error("Error listing users:", pageError);
-        break;
-      }
-      
-      const found = usersPage.users.find(u => u.email === member.email);
-      if (found) {
-        existingAuthUser = found;
-        break;
-      }
-      
-      // If we got fewer users than perPage, we've reached the end
-      if (usersPage.users.length < perPage) {
-        break;
-      }
-      
-      page++;
-    }
-
-    if (existingAuthUser) {
-      // Auth user exists but not linked - link them and make admin
-      const { error: linkError } = await adminClient
-        .from("members")
-        .update({
-          auth_user_id: existingAuthUser.id,
-          is_admin: true,
-        })
-        .eq("id", memberId);
-
-      if (linkError) throw linkError;
-
-      // Add admin role
-      await adminClient.from("user_roles").upsert(
-        [
-          { user_id: existingAuthUser.id, role: "admin" },
-          { user_id: existingAuthUser.id, role: "member" },
-        ],
-        { onConflict: "user_id,role" }
-      );
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Bestaand account gekoppeld en beheerdersrechten toegekend",
-          accountCreated: false,
-        }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
     // Generate temporary password for new account
     const tempPassword = generateTemporaryPassword();
 
-    // Create auth user
+    // Try to create auth user
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: member.email,
       password: tempPassword,
@@ -266,6 +198,82 @@ serve(async (req: Request): Promise<Response> => {
         last_name: member.last_name,
       },
     });
+
+    // If user already exists, find and link them
+    if (authError && authError.message.includes("already been registered")) {
+      console.log("User already exists, searching for existing auth user...");
+      
+      // Search through all pages to find the user
+      let existingAuthUser = null;
+      let page = 1;
+      const perPage = 1000;
+      
+      while (!existingAuthUser) {
+        const { data: usersPage, error: pageError } = await adminClient.auth.admin.listUsers({
+          page,
+          perPage,
+        });
+        
+        if (pageError) {
+          console.error("Error listing users:", pageError);
+          break;
+        }
+        
+        console.log(`Searching page ${page}, found ${usersPage.users.length} users`);
+        
+        const found = usersPage.users.find(u => u.email?.toLowerCase() === member.email.toLowerCase());
+        if (found) {
+          existingAuthUser = found;
+          console.log(`Found existing user: ${found.id}`);
+          break;
+        }
+        
+        // If we got fewer users than perPage, we've reached the end
+        if (usersPage.users.length < perPage) {
+          break;
+        }
+        
+        page++;
+      }
+
+      if (existingAuthUser) {
+        // Link existing auth user to member
+        const { error: linkError } = await adminClient
+          .from("members")
+          .update({
+            auth_user_id: existingAuthUser.id,
+            is_admin: true,
+          })
+          .eq("id", memberId);
+
+        if (linkError) throw linkError;
+
+        // Add roles
+        await adminClient.from("user_roles").upsert(
+          [
+            { user_id: existingAuthUser.id, role: "admin" },
+            { user_id: existingAuthUser.id, role: "member" },
+          ],
+          { onConflict: "user_id,role" }
+        );
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "Bestaand account gekoppeld en beheerdersrechten toegekend",
+            accountCreated: false,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      } else {
+        // Couldn't find the user even though it exists - this shouldn't happen
+        console.error("User exists but couldn't be found in search");
+        return new Response(
+          JSON.stringify({ error: "Account bestaat maar kon niet worden gekoppeld. Neem contact op met support." }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    }
 
     if (authError) {
       console.error("Error creating auth user:", authError);

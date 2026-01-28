@@ -127,19 +127,25 @@ function replacePlaceholders(content: string, member: Member, assets: MailingAss
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("Send mailing function called");
+  console.log("Send mailing function called - method:", req.method);
   
   const origin = req.headers.get("origin");
+  console.log("Request origin:", origin);
   const corsHeaders = getCorsHeaders(origin);
   
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
+    console.log("Handling OPTIONS preflight");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log("Processing POST request");
+    
     // Verify authorization header is present
     const authHeader = req.headers.get("authorization");
+    console.log("Auth header present:", !!authHeader);
+    
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       console.error("Missing or invalid authorization header");
       return new Response(
@@ -148,11 +154,23 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    console.log("Getting environment variables");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    console.log("Env vars present - URL:", !!supabaseUrl, "Anon:", !!supabaseAnonKey, "Service:", !!supabaseServiceKey);
+
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      console.error("Missing Supabase environment variables");
+      return new Response(
+        JSON.stringify({ error: "Server configuratie ontbreekt" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     // Create client with user's auth token to verify identity
+    console.log("Creating auth client");
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: { Authorization: authHeader }
@@ -160,6 +178,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Verify the user's JWT and get claims
+    console.log("Verifying JWT");
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getUser(token);
 
@@ -175,9 +194,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Authenticated user:", userId);
 
     // Create service role client for admin checks and data operations
+    console.log("Creating service role client");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify user has admin role
+    console.log("Checking admin role");
     const { data: roleData, error: roleError } = await supabase
       .from("user_roles")
       .select("role")

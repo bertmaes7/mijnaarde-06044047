@@ -238,20 +238,52 @@ serve(async (req: Request): Promise<Response> => {
 
       if (existingAuthUser) {
         // Check if this auth user is already linked to another member
-        const { data: existingMemberLink } = await adminClient
+        const { data: existingMemberLinks } = await adminClient
           .from("members")
           .select("id, first_name, last_name")
-          .eq("auth_user_id", existingAuthUser.id)
-          .single();
+          .eq("auth_user_id", existingAuthUser.id);
 
-        if (existingMemberLink && existingMemberLink.id !== memberId) {
-          // Auth user is linked to a different member
-          console.log(`Auth user already linked to member: ${existingMemberLink.first_name} ${existingMemberLink.last_name}`);
+        const linkedToOther = existingMemberLinks?.find(m => m.id !== memberId);
+        
+        if (linkedToOther) {
+          // Auth user is linked to a different member - this shouldn't happen normally
+          // The user should use the duplicate checker to resolve this
+          console.log(`Auth user already linked to member: ${linkedToOther.first_name} ${linkedToOther.last_name}`);
           return new Response(
             JSON.stringify({ 
-              error: `Dit e-mailadres is al gekoppeld aan een ander lid (${existingMemberLink.first_name} ${existingMemberLink.last_name}). Pas het e-mailadres aan of verwijder het dubbele lid.` 
+              error: `Dit e-mailadres heeft al een account dat gekoppeld is aan een ander lid (${linkedToOther.first_name} ${linkedToOther.last_name}). Gebruik de duplicaten-checker in Tools om dit op te lossen.` 
             }),
             { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+        
+        // Check if THIS member already has a different auth_user_id linked
+        const { data: currentMember } = await adminClient
+          .from("members")
+          .select("auth_user_id")
+          .eq("id", memberId)
+          .single();
+          
+        if (currentMember?.auth_user_id && currentMember.auth_user_id !== existingAuthUser.id) {
+          // This member already has a different auth account - just update admin flag
+          const { error: updateError } = await adminClient
+            .from("members")
+            .update({ is_admin: true })
+            .eq("id", memberId);
+
+          if (updateError) throw updateError;
+
+          await adminClient
+            .from("user_roles")
+            .upsert({ user_id: currentMember.auth_user_id, role: "admin" }, { onConflict: "user_id,role" });
+
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              message: "Beheerdersrechten toegekend aan bestaand account",
+              accountCreated: false 
+            }),
+            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
           );
         }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, Send, Clock, CalendarIcon, ArrowLeft, Users, Mail, Loader2 } from "lucide-react";
+import { Plus, Trash2, Send, Clock, CalendarIcon, ArrowLeft, Users, Mail, Loader2, Search } from "lucide-react";
 import {
   useMailings,
   useMailingTemplates,
@@ -21,6 +21,7 @@ import {
   Mailing,
 } from "@/hooks/useMailing";
 import { useMembers } from "@/hooks/useMembers";
+import { useCompanies } from "@/hooks/useCompanies";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -45,6 +46,7 @@ import {
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { RecipientFilters, RecipientFiltersState, applyRecipientFilters } from "@/components/mailing/RecipientFilters";
 
 const statusLabels: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   draft: { label: "Concept", variant: "secondary" },
@@ -57,6 +59,7 @@ export default function Mailings() {
   const { data: mailings, isLoading, refetch } = useMailings();
   const { data: templates } = useMailingTemplates();
   const { data: members } = useMembers();
+  const { data: companies = [] } = useCompanies();
   const createMailing = useCreateMailing();
   const updateMailing = useUpdateMailing();
   const deleteMailing = useDeleteMailing();
@@ -64,6 +67,13 @@ export default function Mailings() {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedMailing, setSelectedMailing] = useState<Mailing | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [recipientFilters, setRecipientFilters] = useState<RecipientFiltersState>({
+    status: "all",
+    companyId: "all",
+    city: "all",
+    membershipType: "all",
+  });
   const [formData, setFormData] = useState({
     title: "",
     template_id: "" as string,
@@ -73,7 +83,36 @@ export default function Mailings() {
     scheduled_time: "09:00",
   });
 
-  const activeMembers = members?.filter((m) => m.is_active && m.email) || [];
+  // Get all members with email for mailing
+  const membersWithEmail = members?.filter((m) => m.email) || [];
+  
+  // Apply filters to get filtered members
+  const filteredMembers = useMemo(() => {
+    let result = applyRecipientFilters(membersWithEmail, recipientFilters);
+    
+    // Apply search
+    if (memberSearch) {
+      const searchLower = memberSearch.toLowerCase();
+      result = result.filter((m) =>
+        `${m.first_name} ${m.last_name}`.toLowerCase().includes(searchLower) ||
+        m.email?.toLowerCase().includes(searchLower) ||
+        m.city?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return result;
+  }, [membersWithEmail, recipientFilters, memberSearch]);
+
+  // Get unique cities for filter
+  const cities = useMemo(() => {
+    const uniqueCities = new Set(membersWithEmail.map((m) => m.city).filter(Boolean) as string[]);
+    return Array.from(uniqueCities).sort();
+  }, [membersWithEmail]);
+
+  // For "all" selection type, use filtered members count
+  const activeMembers = recipientFilters.status === "all" || recipientFilters.status === "active"
+    ? filteredMembers.filter((m) => m.is_active)
+    : filteredMembers;
 
   const handleSendNow = async (mailingId: string) => {
     setIsSending(true);
@@ -104,6 +143,13 @@ export default function Mailings() {
   const handleCreate = () => {
     setIsCreating(true);
     setSelectedMailing(null);
+    setMemberSearch("");
+    setRecipientFilters({
+      status: "all",
+      companyId: "all",
+      city: "all",
+      membershipType: "all",
+    });
     setFormData({
       title: "",
       template_id: "",
@@ -142,10 +188,10 @@ export default function Mailings() {
     }));
   };
 
-  const selectAllMembers = () => {
+  const selectAllFilteredMembers = () => {
     setFormData((prev) => ({
       ...prev,
-      selected_member_ids: activeMembers.map((m) => m.id),
+      selected_member_ids: [...new Set([...prev.selected_member_ids, ...filteredMembers.map((m) => m.id)])],
     }));
   };
 
@@ -155,6 +201,14 @@ export default function Mailings() {
       selected_member_ids: [],
     }));
   };
+
+  const selectAllMembers = () => {
+    setFormData((prev) => ({
+      ...prev,
+      selected_member_ids: membersWithEmail.filter((m) => m.is_active).map((m) => m.id),
+    }));
+  };
+
 
   const getScheduledDateTime = () => {
     if (!formData.scheduled_at) return null;
@@ -206,7 +260,9 @@ export default function Mailings() {
   // Show editor view
   if (isCreating || selectedMailing) {
     const recipientCount =
-      formData.selection_type === "all" ? activeMembers.length : formData.selected_member_ids.length;
+      formData.selection_type === "all" 
+        ? membersWithEmail.filter((m) => m.is_active).length 
+        : formData.selected_member_ids.length;
 
     return (
       <MainLayout>
@@ -278,52 +334,95 @@ export default function Mailings() {
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="all" id="all" />
                       <Label htmlFor="all" className="font-normal">
-                        Alle actieve leden met e-mailadres ({activeMembers.length} leden)
+                        Alle actieve leden met e-mailadres ({membersWithEmail.filter((m) => m.is_active).length} leden)
                       </Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="manual" id="manual" />
                       <Label htmlFor="manual" className="font-normal">
-                        Handmatige selectie
+                        Gefilterde selectie
                       </Label>
                     </div>
                   </RadioGroup>
 
                   {formData.selection_type === "manual" && (
-                    <div className="space-y-3 pt-4">
+                    <div className="space-y-4 pt-4">
+                      {/* Filters */}
+                      <RecipientFilters
+                        filters={recipientFilters}
+                        onFiltersChange={setRecipientFilters}
+                        companies={companies}
+                        cities={cities}
+                      />
+
+                      {/* Search */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          placeholder="Zoek op naam, e-mail of stad..."
+                          value={memberSearch}
+                          onChange={(e) => setMemberSearch(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+
+                      {/* Selection controls */}
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">
-                          {formData.selected_member_ids.length} van {activeMembers.length} geselecteerd
+                          {formData.selected_member_ids.length} geselecteerd van {filteredMembers.length} gefilterde leden
                         </span>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                          <Button variant="outline" size="sm" onClick={selectAllFilteredMembers}>
+                            Gefilterde selecteren ({filteredMembers.length})
+                          </Button>
                           <Button variant="outline" size="sm" onClick={selectAllMembers}>
-                            Alles selecteren
+                            Alle actieve
                           </Button>
                           <Button variant="outline" size="sm" onClick={deselectAllMembers}>
-                            Niets selecteren
+                            Niets
                           </Button>
                         </div>
                       </div>
+
+                      {/* Member list */}
                       <ScrollArea className="h-[300px] border rounded-lg p-4">
                         <div className="space-y-2">
-                          {activeMembers.map((member) => (
-                            <div
-                              key={member.id}
-                              className="flex items-center space-x-3 py-2 border-b last:border-0"
-                            >
-                              <Checkbox
-                                id={member.id}
-                                checked={formData.selected_member_ids.includes(member.id)}
-                                onCheckedChange={() => toggleMember(member.id)}
-                              />
-                              <Label htmlFor={member.id} className="flex-1 font-normal cursor-pointer">
-                                <span className="font-medium">
-                                  {member.first_name} {member.last_name}
-                                </span>
-                                <span className="text-muted-foreground ml-2">{member.email}</span>
-                              </Label>
-                            </div>
-                          ))}
+                          {filteredMembers.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                              Geen leden gevonden met de huidige filters
+                            </p>
+                          ) : (
+                            filteredMembers.map((member) => (
+                              <div
+                                key={member.id}
+                                className="flex items-center space-x-3 py-2 border-b last:border-0"
+                              >
+                                <Checkbox
+                                  id={member.id}
+                                  checked={formData.selected_member_ids.includes(member.id)}
+                                  onCheckedChange={() => toggleMember(member.id)}
+                                />
+                                <Label htmlFor={member.id} className="flex-1 font-normal cursor-pointer">
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                                    <span className="font-medium">
+                                      {member.first_name} {member.last_name}
+                                    </span>
+                                    <span className="text-muted-foreground text-sm">{member.email}</span>
+                                    {member.city && (
+                                      <Badge variant="outline" className="text-xs w-fit">
+                                        {member.city}
+                                      </Badge>
+                                    )}
+                                    {!member.is_active && (
+                                      <Badge variant="secondary" className="text-xs w-fit">
+                                        Inactief
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </Label>
+                              </div>
+                            ))
+                          )}
                         </div>
                       </ScrollArea>
                     </div>

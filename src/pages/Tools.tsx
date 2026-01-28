@@ -30,10 +30,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useMembers, useDuplicateEmails, useBulkUpdateMembers } from "@/hooks/useMembers";
-import { Wrench, AlertTriangle, Users, RefreshCw, Loader2 } from "lucide-react";
+import { Wrench, AlertTriangle, Users, RefreshCw, Loader2, Shield, Key, Copy, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const BULK_UPDATE_FIELDS = [
   { value: "receives_mail", label: "Ontvangt mail", type: "boolean" },
@@ -45,16 +54,63 @@ const BULK_UPDATE_FIELDS = [
   { value: "is_council_member", label: "Raadslid", type: "boolean" },
 ] as const;
 
+// Hook to get admin members
+function useAdminMembers() {
+  return useQuery({
+    queryKey: ["admin-members"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("members")
+        .select("id, first_name, last_name, email, auth_user_id, is_admin, password_change_required")
+        .eq("is_admin", true)
+        .not("auth_user_id", "is", null)
+        .order("last_name", { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+// Hook to reset admin password
+function useResetAdminPassword() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (memberId: string) => {
+      const { data, error } = await supabase.functions.invoke("reset-admin-password", {
+        body: { memberId },
+      });
+      
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+    },
+  });
+}
+
 export default function Tools() {
   const { data: members = [], isLoading: membersLoading } = useMembers();
   const { data: duplicates = [], isLoading: duplicatesLoading, refetch: refetchDuplicates } = useDuplicateEmails();
+  const { data: adminMembers = [], isLoading: adminsLoading, refetch: refetchAdmins } = useAdminMembers();
   const bulkUpdate = useBulkUpdateMembers();
+  const resetPassword = useResetAdminPassword();
 
   // Bulk update state
   const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
   const [selectedField, setSelectedField] = useState<string>("");
   const [selectedValue, setSelectedValue] = useState<string>("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  
+  // Password reset state
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetResult, setResetResult] = useState<{ email: string; tempPassword: string } | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+  const [confirmResetMemberId, setConfirmResetMemberId] = useState<string | null>(null);
+  const [confirmResetName, setConfirmResetName] = useState<string>("");
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -101,6 +157,35 @@ export default function Tools() {
     setSelectedMemberIds(new Set());
     setSelectedField("");
     setSelectedValue("");
+  };
+
+  const handleResetPassword = (memberId: string, name: string) => {
+    setConfirmResetMemberId(memberId);
+    setConfirmResetName(name);
+  };
+
+  const confirmResetPassword = async () => {
+    if (!confirmResetMemberId) return;
+    
+    try {
+      const result = await resetPassword.mutateAsync(confirmResetMemberId);
+      setResetResult({ email: result.email, tempPassword: result.tempPassword });
+      setResetDialogOpen(true);
+      toast.success("Wachtwoord succesvol gereset");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Fout bij resetten wachtwoord");
+    } finally {
+      setConfirmResetMemberId(null);
+      setConfirmResetName("");
+    }
+  };
+
+  const copyPassword = async () => {
+    if (resetResult?.tempPassword) {
+      await navigator.clipboard.writeText(resetResult.tempPassword);
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 2000);
+    }
   };
 
   const selectedFieldLabel = BULK_UPDATE_FIELDS.find(f => f.value === selectedField)?.label || selectedField;
@@ -295,9 +380,99 @@ export default function Tools() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Admin Management Section */}
+        <Card className="card-elevated">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Shield className="h-5 w-5 text-primary" />
+                  Beheerders
+                </CardTitle>
+                <CardDescription>
+                  Overzicht van alle beheerders en wachtwoordbeheer
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchAdmins()}
+                disabled={adminsLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${adminsLoading ? "animate-spin" : ""}`} />
+                Vernieuwen
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Naam</TableHead>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actie</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {adminsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                      </TableCell>
+                    </TableRow>
+                  ) : adminMembers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Geen beheerders gevonden
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    adminMembers.map((admin) => (
+                      <TableRow key={admin.id}>
+                        <TableCell className="font-medium">
+                          <Link to={`/members/${admin.id}`} className="text-primary hover:underline">
+                            {admin.first_name} {admin.last_name}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {admin.email}
+                        </TableCell>
+                        <TableCell>
+                          {admin.password_change_required ? (
+                            <Badge variant="outline" className="text-amber-600 border-amber-300">
+                              Wachtwoord wijzigen vereist
+                            </Badge>
+                          ) : (
+                            <Badge variant="default" className="bg-green-600">
+                              Actief
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResetPassword(admin.id, `${admin.first_name} ${admin.last_name}`)}
+                            disabled={resetPassword.isPending}
+                          >
+                            <Key className="h-4 w-4 mr-2" />
+                            Reset wachtwoord
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog for Bulk Update */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -316,6 +491,66 @@ export default function Tools() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Confirmation Dialog for Password Reset */}
+      <AlertDialog open={!!confirmResetMemberId} onOpenChange={(open) => !open && setConfirmResetMemberId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Wachtwoord resetten</AlertDialogTitle>
+            <AlertDialogDescription>
+              Weet je zeker dat je het wachtwoord van <strong>{confirmResetName}</strong> wilt resetten?
+              <br /><br />
+              Er wordt een nieuw tijdelijk wachtwoord aangemaakt dat bij de volgende inlog moet worden gewijzigd.
+              Het nieuwe wachtwoord wordt ook per e-mail verstuurd.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResetPassword} disabled={resetPassword.isPending}>
+              {resetPassword.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Wachtwoord resetten
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog showing new password */}
+      <Dialog open={resetDialogOpen} onOpenChange={(open) => {
+        setResetDialogOpen(open);
+        if (!open) {
+          setResetResult(null);
+          setCopiedPassword(false);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Wachtwoord gereset</DialogTitle>
+            <DialogDescription>
+              Het wachtwoord is succesvol gereset. Het nieuwe tijdelijke wachtwoord is ook per e-mail verstuurd naar {resetResult?.email}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-muted p-4 rounded-lg">
+              <Label className="text-sm text-muted-foreground">Tijdelijk wachtwoord</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <code className="flex-1 bg-background px-3 py-2 rounded border font-mono text-sm">
+                  {resetResult?.tempPassword}
+                </code>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={copyPassword}
+                >
+                  {copiedPassword ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              <strong>Let op:</strong> De gebruiker moet dit wachtwoord wijzigen bij de volgende inlog.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

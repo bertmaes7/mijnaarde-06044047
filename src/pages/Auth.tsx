@@ -15,7 +15,7 @@ const emailSchema = z.string().email("Ongeldig e-mailadres");
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAdmin, passwordChangeRequired, signInWithPassword, signInWithMagicLink } = useAuthContext();
+  const { user, isLoading: authLoading, isAdmin, passwordChangeRequired, signInWithPassword, signInWithMagicLink, signOut } = useAuthContext();
   
   const [isLoading, setIsLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
@@ -24,26 +24,30 @@ export default function Auth() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // Redirect if already logged in
+  // Redirect if already logged in - wait for auth to finish loading
   useEffect(() => {
-    if (user) {
-      // Check if password change is required first
-      if (passwordChangeRequired) {
-        navigate("/change-password", { replace: true });
-        return;
-      }
-      
+    if (authLoading || !user) return;
+    
+    // Check if password change is required first
+    if (passwordChangeRequired) {
+      navigate("/change-password", { replace: true });
+      return;
+    }
+    
+    // Check admin status only after auth is fully loaded
+    if (isAdmin) {
       const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
       if (from) {
         navigate(from, { replace: true });
-      } else if (isAdmin) {
-        navigate("/", { replace: true });
       } else {
-        // Non-admins cannot access the app - sign them out
-        toast.error("Alleen beheerders kunnen inloggen");
+        navigate("/", { replace: true });
       }
+    } else {
+      // Non-admins cannot access the app - sign them out
+      toast.error("Alleen beheerders kunnen inloggen");
+      signOut();
     }
-  }, [user, isAdmin, passwordChangeRequired, navigate, location.state]);
+  }, [user, authLoading, isAdmin, passwordChangeRequired, navigate, location.state, signOut]);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();

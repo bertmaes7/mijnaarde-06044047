@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMembers } from "@/hooks/useMembers";
 import { useCompanies } from "@/hooks/useCompanies";
+import { useAdminUserIds } from "@/hooks/useAdminUserIds";
 import { exportMembersToCSV, downloadCSV } from "@/lib/csv";
 import { toast } from "sonner";
 import { Search, Plus, Upload, Download } from "lucide-react";
@@ -24,6 +25,7 @@ export default function Members() {
   
   const { data: members = [], isLoading, refetch } = useMembers(search);
   const { data: companies = [] } = useCompanies();
+  const { data: adminUserIds = [] } = useAdminUserIds();
 
   // Extract unique cities from members
   const cities = useMemo(() => {
@@ -156,7 +158,7 @@ export default function Members() {
         />
 
         {/* Table */}
-        <MembersTable members={filteredMembers} isLoading={isLoading} />
+        <MembersTable members={filteredMembers} isLoading={isLoading} adminUserIds={adminUserIds} />
 
         {/* Import Dialog */}
         <CSVImportDialog

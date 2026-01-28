@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -37,8 +38,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useMembers, useDuplicateEmails, useBulkUpdateMembers } from "@/hooks/useMembers";
-import { Wrench, AlertTriangle, Users, RefreshCw, Loader2, Shield, Key, Copy, Check } from "lucide-react";
+import { useTags, useBulkAddTag, useBulkRemoveTag, useCreateTag } from "@/hooks/useTags";
+import { Wrench, AlertTriangle, Users, RefreshCw, Loader2, Shield, Key, Copy, Check, Tag, Plus, Search, X, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,7 +111,11 @@ export default function Tools() {
   const { data: members = [], isLoading: membersLoading } = useMembers();
   const { data: duplicates = [], isLoading: duplicatesLoading, refetch: refetchDuplicates } = useDuplicateEmails();
   const { data: adminMembers = [], isLoading: adminsLoading, refetch: refetchAdmins } = useAdminMembers();
+  const { data: allTags = [], isLoading: tagsLoading } = useTags();
   const bulkUpdate = useBulkUpdateMembers();
+  const bulkAddTag = useBulkAddTag();
+  const bulkRemoveTag = useBulkRemoveTag();
+  const createTag = useCreateTag();
   const resetPassword = useResetAdminPassword();
 
   // Bulk update state
@@ -105,6 +124,19 @@ export default function Tools() {
   const [selectedValue, setSelectedValue] = useState<string>("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  const [tagInputValue, setTagInputValue] = useState("");
+  
+  // Tag bulk action state
+  const [tagActionType, setTagActionType] = useState<"add" | "remove">("add");
+  const [selectedTagId, setSelectedTagId] = useState<string>("");
+  const [showTagConfirmDialog, setShowTagConfirmDialog] = useState(false);
+  const [newTagInputValue, setNewTagInputValue] = useState("");
+  const [actionTagPopoverOpen, setActionTagPopoverOpen] = useState(false);
+  
   // Password reset state
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetResult, setResetResult] = useState<{ email: string; tempPassword: string } | null>(null);
@@ -112,9 +144,33 @@ export default function Tools() {
   const [confirmResetMemberId, setConfirmResetMemberId] = useState<string | null>(null);
   const [confirmResetName, setConfirmResetName] = useState<string>("");
 
+  // Filter members based on search and tags
+  const filteredMembers = useMemo(() => {
+    return members.filter(member => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const fullName = `${member.first_name} ${member.last_name}`.toLowerCase();
+        const email = member.email?.toLowerCase() || "";
+        if (!fullName.includes(query) && !email.includes(query)) {
+          return false;
+        }
+      }
+      
+      // Tag filter - member must have ALL selected tags
+      if (filterTagIds.length > 0) {
+        const memberTagIds = member.member_tags?.map(mt => mt.tag_id) || [];
+        const hasAllTags = filterTagIds.every(tagId => memberTagIds.includes(tagId));
+        if (!hasAllTags) return false;
+      }
+      
+      return true;
+    });
+  }, [members, searchQuery, filterTagIds]);
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedMemberIds(new Set(members.map(m => m.id)));
+      setSelectedMemberIds(new Set(filteredMembers.map(m => m.id)));
     } else {
       setSelectedMemberIds(new Set());
     }
@@ -157,6 +213,61 @@ export default function Tools() {
     setSelectedMemberIds(new Set());
     setSelectedField("");
     setSelectedValue("");
+  };
+
+  const handleBulkTagAction = () => {
+    if (selectedMemberIds.size === 0) {
+      toast.error("Selecteer minstens één lid");
+      return;
+    }
+    if (!selectedTagId && tagActionType === "remove") {
+      toast.error("Selecteer een tag");
+      return;
+    }
+    if (!selectedTagId && !newTagInputValue.trim() && tagActionType === "add") {
+      toast.error("Selecteer of maak een tag");
+      return;
+    }
+    setShowTagConfirmDialog(true);
+  };
+
+  const confirmBulkTagAction = async () => {
+    let tagId = selectedTagId;
+    
+    // Create new tag if needed
+    if (!tagId && newTagInputValue.trim() && tagActionType === "add") {
+      try {
+        const newTag = await createTag.mutateAsync(newTagInputValue.trim());
+        tagId = newTag.id;
+      } catch (error) {
+        toast.error("Fout bij aanmaken tag");
+        setShowTagConfirmDialog(false);
+        return;
+      }
+    }
+    
+    if (!tagId) {
+      toast.error("Geen tag geselecteerd");
+      setShowTagConfirmDialog(false);
+      return;
+    }
+    
+    if (tagActionType === "add") {
+      await bulkAddTag.mutateAsync({
+        memberIds: Array.from(selectedMemberIds),
+        tagId,
+      });
+    } else {
+      await bulkRemoveTag.mutateAsync({
+        memberIds: Array.from(selectedMemberIds),
+        tagId,
+      });
+    }
+    
+    setShowTagConfirmDialog(false);
+    setSelectedMemberIds(new Set());
+    setSelectedTagId("");
+    setNewTagInputValue("");
   };
 
   const handleResetPassword = (memberId: string, name: string) => {
@@ -271,12 +382,99 @@ export default function Tools() {
               Bulk bijwerken
             </CardTitle>
             <CardDescription>
-              Werk een veld bij voor meerdere leden tegelijk
+              Werk velden of tags bij voor meerdere leden tegelijk
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Controls */}
-            <div className="flex flex-wrap gap-4 items-end">
+            {/* Search and Filter */}
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Zoek op naam of e-mail..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              {/* Tag Filter */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {filterTagIds.map((tagId) => {
+                  const tag = allTags.find(t => t.id === tagId);
+                  return tag ? (
+                    <Badge key={tagId} variant="secondary" className="gap-1 pr-1">
+                      {tag.name}
+                      <button
+                        type="button"
+                        onClick={() => setFilterTagIds(filterTagIds.filter(id => id !== tagId))}
+                        className="ml-1 hover:bg-muted rounded p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ) : null;
+                })}
+                <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 gap-1">
+                      {tagsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Tag className="h-3 w-3" />}
+                      Filter op tags
+                      <ChevronDown className="h-3 w-3 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-0" align="start">
+                    <Command>
+                      <CommandInput
+                        placeholder="Zoek tag..."
+                        value={tagInputValue}
+                        onValueChange={setTagInputValue}
+                      />
+                      <CommandList>
+                        <CommandEmpty>Geen tags gevonden</CommandEmpty>
+                        <CommandGroup>
+                          {allTags
+                            .filter(t => !filterTagIds.includes(t.id))
+                            .filter(t => t.name.toLowerCase().includes(tagInputValue.toLowerCase()))
+                            .map((tag) => (
+                              <CommandItem
+                                key={tag.id}
+                                value={tag.name}
+                                onSelect={() => {
+                                  setFilterTagIds([...filterTagIds, tag.id]);
+                                  setTagPopoverOpen(false);
+                                  setTagInputValue("");
+                                }}
+                              >
+                                <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
+                                {tag.name}
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                
+                {(searchQuery || filterTagIds.length > 0) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setFilterTagIds([]);
+                    }}
+                    className="h-8 gap-1 text-muted-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                    Wis filters
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            {/* Boolean Field Controls */}
+            <div className="flex flex-wrap gap-4 items-end border-t pt-4">
               <div className="space-y-2">
                 <Label>Veld</Label>
                 <Select value={selectedField} onValueChange={setSelectedField}>
@@ -311,7 +509,108 @@ export default function Tools() {
                 disabled={bulkUpdate.isPending || selectedMemberIds.size === 0}
               >
                 {bulkUpdate.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Bijwerken ({selectedMemberIds.size} geselecteerd)
+                Bijwerken ({selectedMemberIds.size})
+              </Button>
+            </div>
+
+            {/* Tag Action Controls */}
+            <div className="flex flex-wrap gap-4 items-end border-t pt-4">
+              <div className="space-y-2">
+                <Label>Tag actie</Label>
+                <Select value={tagActionType} onValueChange={(v: "add" | "remove") => setTagActionType(v)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="add">Tag toevoegen</SelectItem>
+                    <SelectItem value="remove">Tag verwijderen</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tag</Label>
+                <Popover open={actionTagPopoverOpen} onOpenChange={setActionTagPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-48 justify-between">
+                      {selectedTagId ? allTags.find(t => t.id === selectedTagId)?.name : 
+                        newTagInputValue ? `"${newTagInputValue}" (nieuw)` : "Selecteer tag..."}
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-0" align="start">
+                    <Command>
+                      <CommandInput
+                        placeholder="Zoek of maak tag..."
+                        value={newTagInputValue}
+                        onValueChange={(v) => {
+                          setNewTagInputValue(v);
+                          setSelectedTagId("");
+                        }}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          {tagActionType === "add" && newTagInputValue.trim() ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedTagId("");
+                                setActionTagPopoverOpen(false);
+                              }}
+                              className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded cursor-pointer"
+                            >
+                              <Plus className="h-4 w-4" />
+                              "{newTagInputValue}" aanmaken
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground">Geen tags gevonden</span>
+                          )}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {allTags
+                            .filter(t => t.name.toLowerCase().includes(newTagInputValue.toLowerCase()))
+                            .map((tag) => (
+                              <CommandItem
+                                key={tag.id}
+                                value={tag.name}
+                                onSelect={() => {
+                                  setSelectedTagId(tag.id);
+                                  setNewTagInputValue("");
+                                  setActionTagPopoverOpen(false);
+                                }}
+                              >
+                                <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
+                                {tag.name}
+                              </CommandItem>
+                            ))}
+                          {tagActionType === "add" && newTagInputValue.trim() && 
+                            !allTags.some(t => t.name.toLowerCase() === newTagInputValue.toLowerCase()) && (
+                            <CommandItem
+                              value={`create-${newTagInputValue}`}
+                              onSelect={() => {
+                                setSelectedTagId("");
+                                setActionTagPopoverOpen(false);
+                              }}
+                              className="text-primary"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              "{newTagInputValue}" aanmaken
+                            </CommandItem>
+                          )}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <Button
+                onClick={handleBulkTagAction}
+                disabled={bulkAddTag.isPending || bulkRemoveTag.isPending || selectedMemberIds.size === 0}
+                variant={tagActionType === "remove" ? "destructive" : "default"}
+              >
+                {(bulkAddTag.isPending || bulkRemoveTag.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {tagActionType === "add" ? "Tag toevoegen" : "Tag verwijderen"} ({selectedMemberIds.size})
               </Button>
             </div>
 
@@ -322,12 +621,13 @@ export default function Tools() {
                   <TableRow>
                     <TableHead className="w-12">
                       <Checkbox
-                        checked={selectedMemberIds.size === members.length && members.length > 0}
+                        checked={selectedMemberIds.size === filteredMembers.length && filteredMembers.length > 0}
                         onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
                     <TableHead>Naam</TableHead>
                     <TableHead>E-mail</TableHead>
+                    <TableHead>Tags</TableHead>
                     <TableHead>Ontvangt mail</TableHead>
                     <TableHead>Actief</TableHead>
                   </TableRow>
@@ -335,18 +635,18 @@ export default function Tools() {
                 <TableBody>
                   {membersLoading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">
+                      <TableCell colSpan={6} className="text-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                       </TableCell>
                     </TableRow>
-                  ) : members.length === 0 ? (
+                  ) : filteredMembers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                         Geen leden gevonden
                       </TableCell>
                     </TableRow>
                   ) : (
-                    members.map((member) => (
+                    filteredMembers.map((member) => (
                       <TableRow key={member.id}>
                         <TableCell>
                           <Checkbox
@@ -363,6 +663,15 @@ export default function Tools() {
                           {member.email || "-"}
                         </TableCell>
                         <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {member.member_tags?.map((mt) => (
+                              <Badge key={mt.tag_id} variant="outline" className="text-xs">
+                                {mt.tag?.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <Badge variant={member.receives_mail ? "default" : "secondary"}>
                             {member.receives_mail ? "Ja" : "Nee"}
                           </Badge>
@@ -377,6 +686,11 @@ export default function Tools() {
                   )}
                 </TableBody>
               </Table>
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              {filteredMembers.length} van {members.length} leden weergegeven
+              {selectedMemberIds.size > 0 && ` • ${selectedMemberIds.size} geselecteerd`}
             </div>
           </CardContent>
         </Card>
@@ -499,6 +813,31 @@ export default function Tools() {
             <AlertDialogCancel>Annuleren</AlertDialogCancel>
             <AlertDialogAction onClick={confirmBulkUpdate}>
               Bijwerken
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmation Dialog for Tag Action */}
+      <AlertDialog open={showTagConfirmDialog} onOpenChange={setShowTagConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tag {tagActionType === "add" ? "toevoegen" : "verwijderen"} bevestigen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Je staat op het punt om de tag "{selectedTagId ? allTags.find(t => t.id === selectedTagId)?.name : newTagInputValue}" 
+              {tagActionType === "add" ? " toe te voegen aan" : " te verwijderen van"} {selectedMemberIds.size} leden.
+              <br /><br />
+              Deze actie kan niet ongedaan worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmBulkTagAction}
+              className={tagActionType === "remove" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              {(bulkAddTag.isPending || bulkRemoveTag.isPending || createTag.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {tagActionType === "add" ? "Toevoegen" : "Verwijderen"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

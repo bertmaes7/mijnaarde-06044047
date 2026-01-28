@@ -370,6 +370,42 @@ export type Database = {
           },
         ]
       }
+      member_tags: {
+        Row: {
+          created_at: string
+          id: string
+          member_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_tags_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           address: string | null
@@ -485,6 +521,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tags: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

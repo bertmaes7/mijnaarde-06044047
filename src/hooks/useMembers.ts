@@ -2,6 +2,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, Member } from "@/lib/supabase";
 import { toast } from "sonner";
 
+export type MemberWithTags = Member & {
+  member_tags?: { tag_id: string; tag: { id: string; name: string } }[];
+};
+
 export function useMembers(search?: string) {
   return useQuery({
     queryKey: ["members", search],
@@ -10,7 +14,11 @@ export function useMembers(search?: string) {
         .from("members")
         .select(`
           *,
-          company:companies(*)
+          company:companies(*),
+          member_tags(
+            tag_id,
+            tag:tags(id, name)
+          )
         `)
         .order("last_name", { ascending: true });
 
@@ -22,7 +30,7 @@ export function useMembers(search?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Member[];
+      return data as MemberWithTags[];
     },
   });
 }

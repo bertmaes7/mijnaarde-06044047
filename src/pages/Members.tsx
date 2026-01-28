@@ -21,6 +21,7 @@ export default function Members() {
     companyId: "all",
     city: "all",
     membershipType: "all",
+    tagIds: [],
   });
   
   const { data: members = [], isLoading, refetch } = useMembers(search);
@@ -73,6 +74,13 @@ export default function Members() {
             if (!member.receives_mail) return false;
             break;
         }
+      }
+
+      // Tag filter - member must have ALL selected tags
+      if (filters.tagIds.length > 0) {
+        const memberTagIds = member.member_tags?.map(mt => mt.tag_id) || [];
+        const hasAllTags = filters.tagIds.every(tagId => memberTagIds.includes(tagId));
+        if (!hasAllTags) return false;
       }
 
       return true;

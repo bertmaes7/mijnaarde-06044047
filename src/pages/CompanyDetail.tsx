@@ -29,6 +29,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useMemo } from "react";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
+import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import {
   ArrowLeft,
   Save,
@@ -131,6 +133,21 @@ export default function CompanyDetail() {
         is_supplier: data.is_supplier,
       },
     });
+    // Reset dirty state after successful save
+    form.reset(data);
+  };
+
+  const { isDirty } = form.formState;
+
+  const {
+    showDialog,
+    handleNavigate,
+    confirmNavigation,
+    cancelNavigation,
+  } = useUnsavedChangesWarning({ isDirty });
+
+  const handleBack = () => {
+    handleNavigate(() => navigate("/companies"));
   };
 
   const websiteUrl = form.watch("website");
@@ -161,10 +178,16 @@ export default function CompanyDetail() {
 
   return (
     <MainLayout>
+      <UnsavedChangesDialog
+        open={showDialog}
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
+      />
+
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/companies")}>
+          <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">

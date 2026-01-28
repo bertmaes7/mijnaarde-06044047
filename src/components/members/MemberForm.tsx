@@ -66,9 +66,10 @@ interface MemberFormProps {
   member?: Member | null;
   onSubmit: (data: MemberFormData) => void;
   isLoading?: boolean;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
-export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
+export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: MemberFormProps) {
   const { data: companies = [] } = useCompanies();
   const [photoUrl, setPhotoUrl] = useState<string | null>(member?.profile_photo_url || null);
 
@@ -104,6 +105,12 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
     },
   });
 
+  // Track dirty state
+  const { isDirty } = form.formState;
+  
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
   useEffect(() => {
     if (member) {
       form.reset({

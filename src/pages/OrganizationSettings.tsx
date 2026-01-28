@@ -4,12 +4,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Save, Image, Building2 } from "lucide-react";
+import { Save, Image, Building2, Users, CreditCard, Calendar } from "lucide-react";
 import {
   useMailingAssets,
   useUpdateMailingAsset,
 } from "@/hooks/useMailing";
 import { LogoUpload } from "@/components/mailing/LogoUpload";
+
+// Define the order and grouping of organization fields
+const fieldGroups = {
+  basic: ["org_name", "org_enterprise_number"],
+  address: ["org_address", "org_postal_code", "org_city", "org_country"],
+  directors: ["org_director_1", "org_director_2", "org_director_3", "org_director_4"],
+  banking: ["org_bank_account_1", "org_bank_account_2"],
+  fiscal: ["org_fiscal_year_start", "org_fiscal_year_end"],
+};
 
 export default function OrganizationSettings() {
   const { data: assets, isLoading } = useMailingAssets();
@@ -19,6 +28,18 @@ export default function OrganizationSettings() {
 
   const organizationAssets = assets?.filter((a) => a.type === "organization") || [];
   const logoAsset = assets?.find((a) => a.type === "logo");
+
+  const getAssetsByKeys = (keys: string[]) => {
+    return keys
+      .map((key) => organizationAssets.find((a) => a.key === key))
+      .filter(Boolean) as typeof organizationAssets;
+  };
+
+  const basicAssets = getAssetsByKeys(fieldGroups.basic);
+  const addressAssets = getAssetsByKeys(fieldGroups.address);
+  const directorAssets = getAssetsByKeys(fieldGroups.directors);
+  const bankingAssets = getAssetsByKeys(fieldGroups.banking);
+  const fiscalAssets = getAssetsByKeys(fieldGroups.fiscal);
 
   const handleValueChange = (id: string, value: string) => {
     setEditedValues((prev) => ({ ...prev, [id]: value }));
@@ -33,6 +54,26 @@ export default function OrganizationSettings() {
       });
     }
   };
+
+  const renderField = (asset: typeof organizationAssets[0], placeholder?: string) => (
+    <div key={asset.id} className="space-y-2">
+      <Label>{asset.label}</Label>
+      <div className="flex gap-2">
+        <Input
+          value={editedValues[asset.id] ?? asset.value}
+          onChange={(e) => handleValueChange(asset.id, e.target.value)}
+          placeholder={placeholder || `Vul ${asset.label.toLowerCase()} in...`}
+        />
+        <Button
+          size="icon"
+          onClick={() => handleSave(asset.id)}
+          disabled={editedValues[asset.id] === undefined || updateAsset.isPending}
+        >
+          <Save className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -54,7 +95,7 @@ export default function OrganizationSettings() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Logo Section */}
           <Card>
             <CardHeader>
@@ -82,7 +123,6 @@ export default function OrganizationSettings() {
                   <LogoUpload
                     onUpload={(url) => {
                       handleValueChange(logoAsset.id, url);
-                      // Auto-save after upload
                       updateAsset.mutate({ id: logoAsset.id, value: url });
                     }}
                   />
@@ -108,35 +148,73 @@ export default function OrganizationSettings() {
             </CardContent>
           </Card>
 
-          {/* Organization Details */}
+          {/* Basic Organization Details */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Organisatiegegevens
+                Basisgegevens
               </CardTitle>
-              <CardDescription>Gegevens van Mijn Aarde vzw</CardDescription>
+              <CardDescription>Naam en identificatie van de vzw</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {organizationAssets.map((asset) => (
-                <div key={asset.id} className="space-y-2">
-                  <Label>{asset.label}</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={editedValues[asset.id] ?? asset.value}
-                      onChange={(e) => handleValueChange(asset.id, e.target.value)}
-                      placeholder={`Vul ${asset.label.toLowerCase()} in...`}
-                    />
-                    <Button
-                      size="icon"
-                      onClick={() => handleSave(asset.id)}
-                      disabled={editedValues[asset.id] === undefined || updateAsset.isPending}
-                    >
-                      <Save className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+              {basicAssets.map((asset) => renderField(asset))}
+            </CardContent>
+          </Card>
+
+          {/* Registered Address */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Maatschappelijke Zetel
+              </CardTitle>
+              <CardDescription>Volledig adres van de maatschappelijke zetel</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {addressAssets.map((asset) => renderField(asset))}
+            </CardContent>
+          </Card>
+
+          {/* Directors */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Gemandateerde Bestuurders
+              </CardTitle>
+              <CardDescription>Maximaal 4 bestuurders met mandaat</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {directorAssets.map((asset) => renderField(asset, "Naam bestuurder..."))}
+            </CardContent>
+          </Card>
+
+          {/* Bank Accounts */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Bankrekeningnummers
+              </CardTitle>
+              <CardDescription>IBAN-nummers van de organisatie</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {bankingAssets.map((asset) => renderField(asset, "BE00 0000 0000 0000"))}
+            </CardContent>
+          </Card>
+
+          {/* Fiscal Year */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Boekjaar
+              </CardTitle>
+              <CardDescription>Start- en einddatum van het huidig boekjaar</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {fiscalAssets.map((asset) => renderField(asset, "DD/MM/YYYY"))}
             </CardContent>
           </Card>
         </div>

@@ -1,4 +1,4 @@
-import { Control } from "react-hook-form";
+import { Control, useWatch } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import {
   FormControl,
@@ -8,7 +8,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Facebook, Linkedin, Instagram } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Facebook, Linkedin, Instagram, ExternalLink } from "lucide-react";
 
 // TikTok icon component (not in lucide-react)
 const TikTokIcon = ({ className }: { className?: string }) => (
@@ -26,7 +27,30 @@ interface SocialMediaFieldsProps {
   control: Control<any>;
 }
 
+function SocialLinkButton({ url }: { url: string | undefined }) {
+  if (!url) return null;
+  
+  const fullUrl = url.startsWith("http") ? url : `https://${url}`;
+  
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8 shrink-0"
+      onClick={() => window.open(fullUrl, "_blank")}
+    >
+      <ExternalLink className="h-4 w-4" />
+    </Button>
+  );
+}
+
 export function SocialMediaFields({ control }: SocialMediaFieldsProps) {
+  const facebookUrl = useWatch({ control, name: "facebook_url" });
+  const linkedinUrl = useWatch({ control, name: "linkedin_url" });
+  const instagramUrl = useWatch({ control, name: "instagram_url" });
+  const tiktokUrl = useWatch({ control, name: "tiktok_url" });
+
   return (
     <Card className="card-elevated">
       <CardHeader>
@@ -46,10 +70,14 @@ export function SocialMediaFields({ control }: SocialMediaFieldsProps) {
                 Facebook
               </FormLabel>
               <FormControl>
-                <Input
-                  placeholder="https://facebook.com/gebruiker"
-                  {...field}
-                />
+                <div className="flex gap-1">
+                  <Input
+                    placeholder="https://facebook.com/gebruiker"
+                    {...field}
+                    className="flex-1"
+                  />
+                  <SocialLinkButton url={facebookUrl} />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -65,10 +93,14 @@ export function SocialMediaFields({ control }: SocialMediaFieldsProps) {
                 LinkedIn
               </FormLabel>
               <FormControl>
-                <Input
-                  placeholder="https://linkedin.com/in/gebruiker"
-                  {...field}
-                />
+                <div className="flex gap-1">
+                  <Input
+                    placeholder="https://linkedin.com/in/gebruiker"
+                    {...field}
+                    className="flex-1"
+                  />
+                  <SocialLinkButton url={linkedinUrl} />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -84,10 +116,14 @@ export function SocialMediaFields({ control }: SocialMediaFieldsProps) {
                 Instagram
               </FormLabel>
               <FormControl>
-                <Input
-                  placeholder="https://instagram.com/gebruiker"
-                  {...field}
-                />
+                <div className="flex gap-1">
+                  <Input
+                    placeholder="https://instagram.com/gebruiker"
+                    {...field}
+                    className="flex-1"
+                  />
+                  <SocialLinkButton url={instagramUrl} />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -103,10 +139,14 @@ export function SocialMediaFields({ control }: SocialMediaFieldsProps) {
                 TikTok
               </FormLabel>
               <FormControl>
-                <Input
-                  placeholder="https://tiktok.com/@gebruiker"
-                  {...field}
-                />
+                <div className="flex gap-1">
+                  <Input
+                    placeholder="https://tiktok.com/@gebruiker"
+                    {...field}
+                    className="flex-1"
+                  />
+                  <SocialLinkButton url={tiktokUrl} />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>

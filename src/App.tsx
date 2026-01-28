@@ -17,7 +17,7 @@ import Finance from "./pages/Finance";
 import Income from "./pages/Income";
 import Expenses from "./pages/Expenses";
 import Invoices from "./pages/Invoices";
-import MailingAssets from "./pages/MailingAssets";
+import OrganizationSettings from "./pages/OrganizationSettings";
 import MailingTemplates from "./pages/MailingTemplates";
 import Mailings from "./pages/Mailings";
 import Events from "./pages/Events";
@@ -132,10 +132,10 @@ const App = () => (
               }
             />
             <Route
-              path="/mailing/assets"
+              path="/mailing/templates"
               element={
                 <ProtectedRoute requireAdmin>
-                  <MailingAssets />
+                  <MailingTemplates />
                 </ProtectedRoute>
               }
             />
@@ -168,6 +168,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <Tools />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tools/organization"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <OrganizationSettings />
                 </ProtectedRoute>
               }
             />

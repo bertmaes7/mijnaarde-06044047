@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, Building2, LayoutDashboard, Leaf, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, Settings, FileCode, Send, Calendar, Wrench } from "lucide-react";
+import { Users, Building2, LayoutDashboard, Leaf, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, FileCode, Send, Calendar, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -26,9 +26,13 @@ const financeSubItems = [
 ];
 
 const mailingSubItems = [
-  { href: "/mailing/assets", label: "Assets & Gegevens", icon: Settings },
   { href: "/mailing/templates", label: "Templates", icon: FileCode },
   { href: "/mailing", label: "Mailings", icon: Send },
+];
+
+const toolsSubItems = [
+  { href: "/tools", label: "Onderhoud", icon: Wrench },
+  { href: "/tools/organization", label: "Organisatie", icon: Building2 },
 ];
 
 export function Sidebar() {
@@ -84,7 +88,7 @@ export function Sidebar() {
           {/* Finance Section */}
           <FinanceNav location={location} />
           
-          {/* Tools - at the bottom */}
+          {/* Tools Section with submenu */}
           <ToolsNav location={location} />
         </nav>
 
@@ -214,20 +218,50 @@ function MailingNav({ location }: { location: ReturnType<typeof useLocation> }) 
 }
 
 function ToolsNav({ location }: { location: ReturnType<typeof useLocation> }) {
-  const isActive = location.pathname === "/tools";
+  const isToolsActive = location.pathname.startsWith("/tools");
+  const [isOpen, setIsOpen] = useState(isToolsActive);
 
   return (
-    <Link
-      to="/tools"
-      className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-        isActive
-          ? "bg-primary text-primary-foreground"
-          : "text-sidebar-foreground hover:bg-sidebar-accent"
-      )}
-    >
-      <Wrench className="h-5 w-5" />
-      Tools
-    </Link>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger
+        className={cn(
+          "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          isToolsActive
+            ? "bg-primary/10 text-primary"
+            : "text-sidebar-foreground hover:bg-sidebar-accent"
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <Wrench className="h-5 w-5" />
+          Tools
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 transition-transform duration-200",
+            isOpen && "rotate-180"
+          )}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-1 pt-1 pl-4">
+        {toolsSubItems.map((item) => {
+          const isActive = location.pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              to={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent"
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

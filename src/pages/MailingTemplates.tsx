@@ -9,15 +9,25 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Plus, Trash2, Save, FileCode, Eye, ArrowLeft, FileText } from "lucide-react";
+import { Plus, Trash2, Save, FileCode, Eye, ArrowLeft, FileText, Loader2 } from "lucide-react";
 import {
   useMailingTemplates,
   useCreateMailingTemplate,
   useUpdateMailingTemplate,
   useDeleteMailingTemplate,
   useMailingAssets,
+  useCreateMailingAsset,
+  useUpdateMailingAsset,
+  useDeleteMailingAsset,
   MailingTemplate,
 } from "@/hooks/useMailing";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,10 +61,13 @@ const placeholderHelp = [
 
 export default function MailingTemplates() {
   const { data: templates, isLoading } = useMailingTemplates();
-  const { data: assets } = useMailingAssets();
+  const { data: assets, isLoading: assetsLoading } = useMailingAssets();
   const createTemplate = useCreateMailingTemplate();
   const updateTemplate = useUpdateMailingTemplate();
   const deleteTemplate = useDeleteMailingTemplate();
+  const createAsset = useCreateMailingAsset();
+  const updateAsset = useUpdateMailingAsset();
+  const deleteAsset = useDeleteMailingAsset();
 
   const [selectedTemplate, setSelectedTemplate] = useState<MailingTemplate | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -68,7 +81,38 @@ export default function MailingTemplates() {
   const htmlTextareaRef = useRef<HTMLTextAreaElement>(null);
   const textTextareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Text blocks state
+  const [editedTextBlocks, setEditedTextBlocks] = useState<Record<string, string>>({});
+  const [newTextBlock, setNewTextBlock] = useState({ key: "", label: "", value: "" });
+  const [isTextBlockDialogOpen, setIsTextBlockDialogOpen] = useState(false);
+
   const textAssets = assets?.filter((a) => a.type === "text") || [];
+
+  const handleTextBlockValueChange = (id: string, value: string) => {
+    setEditedTextBlocks((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleTextBlockSave = (id: string) => {
+    if (editedTextBlocks[id] !== undefined) {
+      updateAsset.mutate({ id, value: editedTextBlocks[id] });
+      setEditedTextBlocks((prev) => {
+        const { [id]: _, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const handleCreateTextBlock = () => {
+    if (!newTextBlock.key || !newTextBlock.label) return;
+    createAsset.mutate({
+      key: `text_${newTextBlock.key}`,
+      label: newTextBlock.label,
+      type: "text",
+      value: newTextBlock.value,
+    });
+    setNewTextBlock({ key: "", label: "", value: "" });
+    setIsTextBlockDialogOpen(false);
+  };
 
   const insertTextBlock = (value: string) => {
     const ref = activeTab === "html" ? htmlTextareaRef : textTextareaRef;
@@ -366,7 +410,7 @@ export default function MailingTemplates() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Templates</h1>
-            <p className="text-muted-foreground">Beheer e-mailsjablonen voor mailings</p>
+            <p className="text-muted-foreground">Beheer e-mailsjablonen en herbruikbare tekstblokken</p>
           </div>
           <Button onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-2" />
@@ -437,6 +481,130 @@ export default function MailingTemplates() {
                   ))}
                 </TableBody>
               </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Text Blocks Section */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Herbruikbare Tekstblokken
+              </CardTitle>
+              <CardDescription>
+                Maak tekstblokken die je in templates kunt gebruiken met {"{{key}}"}
+              </CardDescription>
+            </div>
+            <Dialog open={isTextBlockDialogOpen} onOpenChange={setIsTextBlockDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nieuw tekstblok
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Nieuw tekstblok</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Sleutel (key)</Label>
+                    <Input
+                      value={newTextBlock.key}
+                      onChange={(e) =>
+                        setNewTextBlock({ ...newTextBlock, key: e.target.value.toLowerCase().replace(/\s/g, "_") })
+                      }
+                      placeholder="bijv. footer_tekst"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Gebruik in templates: {"{{text_" + (newTextBlock.key || "key") + "}}"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Label</Label>
+                    <Input
+                      value={newTextBlock.label}
+                      onChange={(e) => setNewTextBlock({ ...newTextBlock, label: e.target.value })}
+                      placeholder="bijv. Footer tekst"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Inhoud</Label>
+                    <Textarea
+                      value={newTextBlock.value}
+                      onChange={(e) => setNewTextBlock({ ...newTextBlock, value: e.target.value })}
+                      placeholder="Voer de tekst in..."
+                      rows={4}
+                    />
+                  </div>
+                  <Button onClick={handleCreateTextBlock} disabled={!newTextBlock.key || !newTextBlock.label}>
+                    Aanmaken
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </CardHeader>
+          <CardContent>
+            {assetsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : textAssets.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                Nog geen tekstblokken. Maak er een aan om te beginnen.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {textAssets.map((asset) => (
+                  <div key={asset.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium">{asset.label}</h4>
+                        <code className="text-xs text-muted-foreground bg-muted px-1 rounded">
+                          {`{{${asset.key}}}`}
+                        </code>
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Tekstblok verwijderen?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Dit kan niet ongedaan worden gemaakt. Templates die dit blok gebruiken zullen de placeholder
+                              tonen.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteAsset.mutate(asset.id)}>
+                              Verwijderen
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                    <Textarea
+                      value={editedTextBlocks[asset.id] ?? asset.value}
+                      onChange={(e) => handleTextBlockValueChange(asset.id, e.target.value)}
+                      rows={3}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => handleTextBlockSave(asset.id)}
+                      disabled={editedTextBlocks[asset.id] === undefined || updateAsset.isPending}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Opslaan
+                    </Button>
+                  </div>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

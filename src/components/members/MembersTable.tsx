@@ -17,7 +17,6 @@ import { ExternalLink, Mail, Phone, Pencil, ArrowUpDown, ArrowUp, ArrowDown, Shi
 interface MembersTableProps {
   members: Member[];
   isLoading: boolean;
-  adminUserIds?: string[];
 }
 
 type SortField = "name" | "company" | "city" | "email" | "status" | "member_since";
@@ -62,12 +61,8 @@ function SortableHeader({
   );
 }
 
-export function MembersTable({ members, isLoading, adminUserIds = [] }: MembersTableProps) {
+export function MembersTable({ members, isLoading }: MembersTableProps) {
   const [sort, setSort] = useState<SortState>({ field: "name", direction: "asc" });
-
-  const isAdmin = (member: Member) => {
-    return member.auth_user_id && adminUserIds.includes(member.auth_user_id);
-  };
 
   const handleSort = (field: SortField) => {
     setSort((prev) => ({
@@ -178,7 +173,7 @@ export function MembersTable({ members, isLoading, adminUserIds = [] }: MembersT
                       <p className="font-medium">
                         {member.first_name} {member.last_name}
                       </p>
-                      {isAdmin(member) && (
+                      {member.is_admin && (
                         <Badge variant="default" className="gap-1 text-xs">
                           <ShieldCheck className="h-3 w-3" />
                           Admin

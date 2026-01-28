@@ -386,6 +386,7 @@ export type Database = {
           instagram_url: string | null
           is_active: boolean | null
           is_active_member: boolean | null
+          is_admin: boolean
           is_ambassador: boolean | null
           is_board_member: boolean | null
           is_council_member: boolean | null
@@ -418,6 +419,7 @@ export type Database = {
           instagram_url?: string | null
           is_active?: boolean | null
           is_active_member?: boolean | null
+          is_admin?: boolean
           is_ambassador?: boolean | null
           is_board_member?: boolean | null
           is_council_member?: boolean | null
@@ -450,6 +452,7 @@ export type Database = {
           instagram_url?: string | null
           is_active?: boolean | null
           is_active_member?: boolean | null
+          is_admin?: boolean
           is_ambassador?: boolean | null
           is_board_member?: boolean | null
           is_council_member?: boolean | null

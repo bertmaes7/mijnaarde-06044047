@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Plus, Trash2, Save, FileCode, Eye, ArrowLeft, FileText, Loader2 } from "lucide-react";
+import { Plus, Trash2, Save, FileCode, Eye, ArrowLeft, FileText, Loader2, Copy, Code } from "lucide-react";
 import {
   useMailingTemplates,
   useCreateMailingTemplate,
@@ -49,6 +49,8 @@ import {
 } from "@/components/ui/table";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
+import { RichTextEditor } from "@/components/mailing/RichTextEditor";
+import { toast } from "sonner";
 
 const placeholderHelp = [
   { placeholder: "{{voornaam}}", description: "Voornaam van het lid" },
@@ -57,6 +59,7 @@ const placeholderHelp = [
   { placeholder: "{{email}}", description: "E-mailadres" },
   { placeholder: "{{org_name}}", description: "Organisatienaam" },
   { placeholder: "{{logo_url}}", description: "Logo URL" },
+  { placeholder: "{{logo}}", description: "Logo als afbeelding" },
 ];
 
 export default function MailingTemplates() {
@@ -77,7 +80,8 @@ export default function MailingTemplates() {
     html_content: "",
     text_content: "",
   });
-  const [activeTab, setActiveTab] = useState("html");
+  const [activeTab, setActiveTab] = useState("visual");
+  const [editorMode, setEditorMode] = useState<"visual" | "html">("visual");
   const htmlTextareaRef = useRef<HTMLTextAreaElement>(null);
   const textTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -114,35 +118,64 @@ export default function MailingTemplates() {
     setIsTextBlockDialogOpen(false);
   };
 
-  const insertTextBlock = (value: string) => {
-    const ref = activeTab === "html" ? htmlTextareaRef : textTextareaRef;
-    const field = activeTab === "html" ? "html_content" : "text_content";
-    
-    if (ref.current) {
-      const start = ref.current.selectionStart;
-      const end = ref.current.selectionEnd;
-      const currentValue = formData[field];
-      const newValue = currentValue.substring(0, start) + value + currentValue.substring(end);
-      setFormData({ ...formData, [field]: newValue });
-      
-      // Restore cursor position after value
-      setTimeout(() => {
-        if (ref.current) {
-          const newPos = start + value.length;
-          ref.current.setSelectionRange(newPos, newPos);
-          ref.current.focus();
-        }
-      }, 0);
+  const insertPlaceholder = (placeholder: string) => {
+    if (editorMode === "html") {
+      const ref = htmlTextareaRef;
+      if (ref.current) {
+        const start = ref.current.selectionStart;
+        const end = ref.current.selectionEnd;
+        const currentValue = formData.html_content;
+        const newValue = currentValue.substring(0, start) + placeholder + currentValue.substring(end);
+        setFormData({ ...formData, html_content: newValue });
+        
+        setTimeout(() => {
+          if (ref.current) {
+            const newPos = start + placeholder.length;
+            ref.current.setSelectionRange(newPos, newPos);
+            ref.current.focus();
+          }
+        }, 0);
+      } else {
+        setFormData({ ...formData, html_content: formData.html_content + placeholder });
+      }
     } else {
-      // Fallback: append to end
-      setFormData({ ...formData, [field]: formData[field] + value });
+      // For visual editor, append at the end
+      setFormData({ ...formData, html_content: formData.html_content + placeholder });
     }
+    toast.success(`${placeholder} toegevoegd`);
+  };
+
+  const insertTextBlock = (value: string) => {
+    if (editorMode === "html") {
+      const ref = htmlTextareaRef;
+      if (ref.current) {
+        const start = ref.current.selectionStart;
+        const end = ref.current.selectionEnd;
+        const currentValue = formData.html_content;
+        const newValue = currentValue.substring(0, start) + value + currentValue.substring(end);
+        setFormData({ ...formData, html_content: newValue });
+        
+        setTimeout(() => {
+          if (ref.current) {
+            const newPos = start + value.length;
+            ref.current.setSelectionRange(newPos, newPos);
+            ref.current.focus();
+          }
+        }, 0);
+      } else {
+        setFormData({ ...formData, html_content: formData.html_content + value });
+      }
+    } else {
+      setFormData({ ...formData, html_content: formData.html_content + value });
+    }
+    toast.success("Tekstblok ingevoegd");
   };
 
   const handleCreate = () => {
     setIsCreating(true);
     setSelectedTemplate(null);
     setFormData({ name: "", subject: "", html_content: "", text_content: "" });
+    setEditorMode("visual");
   };
 
   const handleEdit = (template: MailingTemplate) => {
@@ -150,6 +183,16 @@ export default function MailingTemplates() {
     setIsCreating(false);
     setFormData({
       name: template.name,
+      subject: template.subject,
+      html_content: template.html_content,
+      text_content: template.text_content || "",
+    });
+    setEditorMode("visual");
+  };
+
+  const handleDuplicate = (template: MailingTemplate) => {
+    createTemplate.mutate({
+      name: `${template.name} (kopie)`,
       subject: template.subject,
       html_content: template.html_content,
       text_content: template.text_content || "",
@@ -210,193 +253,225 @@ export default function MailingTemplates() {
             </div>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Template gegevens</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Naam</Label>
-                      <Input
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="bijv. Nieuwsbrief januari"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Onderwerp</Label>
-                      <Input
-                        value={formData.subject}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                        placeholder="bijv. Nieuws van Mijn Aarde"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Inhoud</CardTitle>
-                  <CardDescription>
-                    Gebruik HTML voor opgemaakte e-mails of platte tekst voor eenvoudige berichten
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between mb-4">
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-                      <TabsList>
-                        <TabsTrigger value="html" className="gap-2">
-                          <FileCode className="h-4 w-4" />
-                          HTML
-                        </TabsTrigger>
-                        <TabsTrigger value="text" className="gap-2">
-                          Tekst
-                        </TabsTrigger>
-                        <TabsTrigger value="preview" className="gap-2">
-                          <Eye className="h-4 w-4" />
-                          Preview
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                    {(activeTab === "html" || activeTab === "text") && textAssets.length > 0 && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="ml-2">
-                            <FileText className="h-4 w-4 mr-2" />
-                            Tekstblok invoegen
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64">
-                          <DropdownMenuLabel>Tekstblokken</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {textAssets.map((asset) => (
-                            <DropdownMenuItem
-                              key={asset.id}
-                              onClick={() => insertTextBlock(asset.value)}
-                              className="flex flex-col items-start"
-                            >
-                              <span className="font-medium">{asset.label}</span>
-                              <span className="text-xs text-muted-foreground truncate max-w-full">
-                                {asset.value.substring(0, 50)}...
-                              </span>
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                  <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsContent value="html" className="mt-0 space-y-2">
-                      <p className="text-sm text-muted-foreground">
-                        HTML-versie voor e-mailclients die HTML ondersteunen
-                      </p>
-                      <Textarea
-                        ref={htmlTextareaRef}
-                        value={formData.html_content}
-                        onChange={(e) => setFormData({ ...formData, html_content: e.target.value })}
-                        placeholder="<html>...</html>"
-                        className="font-mono text-sm min-h-[400px]"
-                      />
-                    </TabsContent>
-                    <TabsContent value="text" className="mt-0 space-y-2">
-                      <p className="text-sm text-muted-foreground">
-                        Platte tekst versie als fallback of voor eenvoudige e-mails
-                      </p>
-                      <Textarea
-                        ref={textTextareaRef}
-                        value={formData.text_content}
-                        onChange={(e) => setFormData({ ...formData, text_content: e.target.value })}
-                        placeholder="Beste {{voornaam}},&#10;&#10;Hier komt je bericht...&#10;&#10;Met vriendelijke groet,&#10;Mijn Aarde"
-                        className="min-h-[400px]"
-                      />
-                    </TabsContent>
-                    <TabsContent value="preview" className="mt-0">
-                      <Tabs defaultValue="preview-html">
-                        <TabsList className="mb-4">
-                          <TabsTrigger value="preview-html" disabled={!formData.html_content}>
-                            HTML Preview
-                          </TabsTrigger>
-                          <TabsTrigger value="preview-text" disabled={!formData.text_content}>
-                            Tekst Preview
-                          </TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="preview-html">
-                          <div className="border rounded-lg p-4 min-h-[400px] bg-white">
-                            {formData.html_content ? (
-                              <div 
-                                dangerouslySetInnerHTML={{ 
-                                  __html: DOMPurify.sanitize(formData.html_content, {
-                                    ALLOWED_TAGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br', 'hr', 'span', 'div', 
-                                      'a', 'img', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
-                                      'strong', 'b', 'em', 'i', 'u', 'blockquote', 'pre', 'code', 'center'],
-                                    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'style', 'class', 'width', 'height', 
-                                      'border', 'cellpadding', 'cellspacing', 'align', 'valign', 'bgcolor', 'color'],
-                                    ALLOW_DATA_ATTR: false,
-                                  })
-                                }} 
-                              />
-                            ) : (
-                              <p className="text-muted-foreground text-center py-8">
-                                Voer HTML in om een preview te zien
-                              </p>
-                            )}
-                          </div>
-                        </TabsContent>
-                        <TabsContent value="preview-text">
-                          <div className="border rounded-lg p-4 min-h-[400px] bg-white">
-                            {formData.text_content ? (
-                              <pre className="whitespace-pre-wrap font-sans text-sm">
-                                {formData.text_content}
-                              </pre>
-                            ) : (
-                              <p className="text-muted-foreground text-center py-8">
-                                Voer tekst in om een preview te zien
-                              </p>
-                            )}
-                          </div>
-                        </TabsContent>
-                      </Tabs>
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
-
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleSave} 
-                  disabled={!formData.name || !formData.subject || (!formData.html_content && !formData.text_content)}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {isCreating ? "Aanmaken" : "Opslaan"}
-                </Button>
-                <Button variant="outline" onClick={handleBack}>
-                  Annuleren
-                </Button>
-              </div>
-            </div>
-
+          <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Beschikbare placeholders</CardTitle>
-                <CardDescription>Gebruik deze variabelen in je template</CardDescription>
+                <CardTitle>Template gegevens</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {placeholderHelp.map((item) => (
-                    <div key={item.placeholder} className="flex flex-col gap-1">
-                      <code className="text-sm bg-muted px-2 py-1 rounded font-mono">
-                        {item.placeholder}
-                      </code>
-                      <span className="text-xs text-muted-foreground">{item.description}</span>
-                    </div>
-                  ))}
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Naam</Label>
+                    <Input
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="bijv. Nieuwsbrief januari"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Onderwerp</Label>
+                    <Input
+                      value={formData.subject}
+                      onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                      placeholder="bijv. Nieuws van Mijn Aarde"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Inhoud</CardTitle>
+                    <CardDescription>
+                      Plak tekst met afbeeldingen uit Word of gebruik de visuele editor
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Toolbar with placeholders and text blocks */}
+                <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-muted/50 rounded-lg">
+                  <span className="text-sm font-medium text-muted-foreground mr-2">Invoegen:</span>
+                  
+                  {/* Placeholder buttons */}
+                  {placeholderHelp.map((item) => (
+                    <Button
+                      key={item.placeholder}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => insertPlaceholder(item.placeholder)}
+                      title={item.description}
+                      className="h-7 text-xs"
+                    >
+                      {item.placeholder.replace(/[{}]/g, '')}
+                    </Button>
+                  ))}
+                  
+                  {/* Text blocks dropdown */}
+                  {textAssets.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-7 text-xs">
+                          <FileText className="h-3 w-3 mr-1" />
+                          Tekstblok
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuLabel>Tekstblokken</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {textAssets.map((asset) => (
+                          <DropdownMenuItem
+                            key={asset.id}
+                            onClick={() => insertTextBlock(asset.value)}
+                            className="flex flex-col items-start"
+                          >
+                            <span className="font-medium">{asset.label}</span>
+                            <span className="text-xs text-muted-foreground truncate max-w-full">
+                              {asset.value.substring(0, 50)}...
+                            </span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  
+                  <div className="flex-1" />
+                  
+                  {/* Editor mode toggle */}
+                  <Button
+                    type="button"
+                    variant={editorMode === "html" ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setEditorMode(editorMode === "visual" ? "html" : "visual")}
+                    className="h-7 text-xs"
+                  >
+                    <Code className="h-3 w-3 mr-1" />
+                    {editorMode === "visual" ? "HTML bekijken" : "Visueel bewerken"}
+                  </Button>
+                </div>
+
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList>
+                    <TabsTrigger value="visual" className="gap-2">
+                      <FileCode className="h-4 w-4" />
+                      HTML
+                    </TabsTrigger>
+                    <TabsTrigger value="text" className="gap-2">
+                      Tekst
+                    </TabsTrigger>
+                    <TabsTrigger value="preview" className="gap-2">
+                      <Eye className="h-4 w-4" />
+                      Preview
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="visual" className="mt-4 space-y-2">
+                    {editorMode === "visual" ? (
+                      <>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Plak tekst met afbeeldingen uit Word, of gebruik de knoppen om op te maken
+                        </p>
+                        <RichTextEditor
+                          content={formData.html_content}
+                          onChange={(html) => setFormData({ ...formData, html_content: html })}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          Bewerk de HTML-code rechtstreeks
+                        </p>
+                        <Textarea
+                          ref={htmlTextareaRef}
+                          value={formData.html_content}
+                          onChange={(e) => setFormData({ ...formData, html_content: e.target.value })}
+                          placeholder="<html>...</html>"
+                          className="font-mono text-sm min-h-[400px]"
+                        />
+                      </>
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="text" className="mt-4 space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Platte tekst versie als fallback of voor eenvoudige e-mails
+                    </p>
+                    <Textarea
+                      ref={textTextareaRef}
+                      value={formData.text_content}
+                      onChange={(e) => setFormData({ ...formData, text_content: e.target.value })}
+                      placeholder="Beste {{voornaam}},&#10;&#10;Hier komt je bericht...&#10;&#10;Met vriendelijke groet,&#10;Mijn Aarde"
+                      className="min-h-[400px]"
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="preview" className="mt-4">
+                    <Tabs defaultValue="preview-html">
+                      <TabsList className="mb-4">
+                        <TabsTrigger value="preview-html" disabled={!formData.html_content}>
+                          HTML Preview
+                        </TabsTrigger>
+                        <TabsTrigger value="preview-text" disabled={!formData.text_content}>
+                          Tekst Preview
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="preview-html">
+                        <div className="border rounded-lg p-4 min-h-[400px] bg-white">
+                          {formData.html_content ? (
+                            <div 
+                              dangerouslySetInnerHTML={{ 
+                                __html: DOMPurify.sanitize(formData.html_content, {
+                                  ALLOWED_TAGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'br', 'hr', 'span', 'div', 
+                                    'a', 'img', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+                                    'strong', 'b', 'em', 'i', 'u', 'blockquote', 'pre', 'code', 'center'],
+                                  ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'style', 'class', 'width', 'height', 
+                                    'border', 'cellpadding', 'cellspacing', 'align', 'valign', 'bgcolor', 'color'],
+                                  ALLOW_DATA_ATTR: false,
+                                })
+                              }} 
+                            />
+                          ) : (
+                            <p className="text-muted-foreground text-center py-8">
+                              Voer HTML in om een preview te zien
+                            </p>
+                          )}
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="preview-text">
+                        <div className="border rounded-lg p-4 min-h-[400px] bg-white">
+                          {formData.text_content ? (
+                            <pre className="whitespace-pre-wrap font-sans text-sm">
+                              {formData.text_content}
+                            </pre>
+                          ) : (
+                            <p className="text-muted-foreground text-center py-8">
+                              Voer tekst in om een preview te zien
+                            </p>
+                          )}
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleSave} 
+                disabled={!formData.name || !formData.subject || (!formData.html_content && !formData.text_content)}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isCreating ? "Aanmaken" : "Opslaan"}
+              </Button>
+              <Button variant="outline" onClick={handleBack}>
+                Annuleren
+              </Button>
+            </div>
           </div>
         </div>
       </MainLayout>
@@ -439,7 +514,7 @@ export default function MailingTemplates() {
                     <TableHead>Naam</TableHead>
                     <TableHead>Onderwerp</TableHead>
                     <TableHead>Laatst gewijzigd</TableHead>
-                    <TableHead className="w-[100px]">Acties</TableHead>
+                    <TableHead className="w-[120px]">Acties</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -455,27 +530,37 @@ export default function MailingTemplates() {
                         {format(new Date(template.updated_at), "d MMM yyyy HH:mm", { locale: nl })}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Template verwijderen?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Dit kan niet ongedaan worden gemaakt. Mailings die deze template gebruiken zullen leeg zijn.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteTemplate.mutate(template.id)}>
-                                Verwijderen
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDuplicate(template)}
+                            title="Dupliceer template"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Template verwijderen?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Dit kan niet ongedaan worden gemaakt. Mailings die deze template gebruiken zullen leeg zijn.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteTemplate.mutate(template.id)}>
+                                  Verwijderen
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

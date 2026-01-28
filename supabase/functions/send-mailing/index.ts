@@ -116,7 +116,19 @@ function replacePlaceholders(content: string, member: Member, assets: MailingAss
   result = result.replace(/\{\{voornaam\}\}/gi, member.first_name || "");
   result = result.replace(/\{\{achternaam\}\}/gi, member.last_name || "");
   result = result.replace(/\{\{email\}\}/gi, member.email || "");
+  result = result.replace(/\{\{naam\}\}/gi, `${member.first_name} ${member.last_name}`.trim());
   result = result.replace(/\{\{volledige_naam\}\}/gi, `${member.first_name} ${member.last_name}`.trim());
+  
+  // Find logo URL from assets
+  const logoAsset = assets.find(a => a.key === "logo" || a.key === "logo_url");
+  const logoUrl = logoAsset?.value || "";
+  
+  // Replace {{logo}} with an actual <img> tag
+  if (logoUrl) {
+    result = result.replace(/\{\{logo\}\}/gi, `<img src="${logoUrl}" alt="Logo" style="max-width: 200px; height: auto;" />`);
+  } else {
+    result = result.replace(/\{\{logo\}\}/gi, "");
+  }
   
   // Replace asset placeholders
   for (const asset of assets) {

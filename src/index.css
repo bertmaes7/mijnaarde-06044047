@@ -1,4 +1,29 @@
 @tailwind base;
+
+/* TipTap Editor Styles */
+.ProseMirror {
+  min-height: 350px;
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: hsl(var(--muted-foreground));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid hsl(var(--border));
+  padding-left: 1rem;
+  margin-left: 0;
+}
 @tailwind components;
 @tailwind utilities;
 

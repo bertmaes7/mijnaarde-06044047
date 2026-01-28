@@ -8,6 +8,60 @@ const ALLOWED_ORIGINS = [
   "https://id-preview--720a5d5a-c520-4ef0-9d57-c342d034b40f.lovable.app",
 ];
 
+// Rate limiting configuration
+const RATE_LIMIT = {
+  MAX_MAILINGS_PER_HOUR: 10,
+  MAX_RECIPIENTS_PER_MAILING: 1000,
+  COOLDOWN_SECONDS: 60, // Minimum time between sends
+};
+
+// In-memory rate limiting store (resets on function cold start)
+// For production, consider using Deno KV or Redis
+const rateLimitStore = new Map<string, { count: number; lastReset: number; lastSend: number }>();
+
+function checkRateLimit(userId: string): { allowed: boolean; reason?: string } {
+  const now = Date.now();
+  const hourInMs = 60 * 60 * 1000;
+  
+  let userLimit = rateLimitStore.get(userId);
+  
+  // Initialize or reset if hour has passed
+  if (!userLimit || now - userLimit.lastReset > hourInMs) {
+    userLimit = { count: 0, lastReset: now, lastSend: 0 };
+    rateLimitStore.set(userId, userLimit);
+  }
+  
+  // Check cooldown between sends
+  if (userLimit.lastSend > 0) {
+    const secondsSinceLastSend = (now - userLimit.lastSend) / 1000;
+    if (secondsSinceLastSend < RATE_LIMIT.COOLDOWN_SECONDS) {
+      const waitTime = Math.ceil(RATE_LIMIT.COOLDOWN_SECONDS - secondsSinceLastSend);
+      return { 
+        allowed: false, 
+        reason: `Wacht ${waitTime} seconden voordat je opnieuw een mailing verstuurt` 
+      };
+    }
+  }
+  
+  // Check hourly limit
+  if (userLimit.count >= RATE_LIMIT.MAX_MAILINGS_PER_HOUR) {
+    return { 
+      allowed: false, 
+      reason: `Maximum van ${RATE_LIMIT.MAX_MAILINGS_PER_HOUR} mailings per uur bereikt. Probeer later opnieuw.` 
+    };
+  }
+  
+  return { allowed: true };
+}
+
+function recordMailingSent(userId: string): void {
+  const userLimit = rateLimitStore.get(userId);
+  if (userLimit) {
+    userLimit.count++;
+    userLimit.lastSend = Date.now();
+  }
+}
+
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const allowedOrigin = origin && ALLOWED_ORIGINS.some(allowed => 
     origin === allowed || origin.endsWith('.lovable.app')
@@ -141,6 +195,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Admin role verified for user:", userId);
 
+    // Check rate limit before proceeding
+    const rateLimitCheck = checkRateLimit(userId);
+    if (!rateLimitCheck.allowed) {
+      console.warn(`Rate limit exceeded for user ${userId}: ${rateLimitCheck.reason}`);
+      return new Response(
+        JSON.stringify({ error: rateLimitCheck.reason }),
+        { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     // Get SMTP settings from environment
     const smtpHost = Deno.env.get("SMTP_HOST");
     const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
@@ -175,6 +239,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const mailingData = mailing as Mailing;
+
+    // Prevent re-sending already sent mailings
+    if (mailingData.status === "sent") {
+      console.warn(`Mailing ${mailingId} has already been sent`);
+      return new Response(
+        JSON.stringify({ error: "Deze mailing is al verzonden" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     // Fetch the template
     if (!mailingData.template_id) {
@@ -223,6 +296,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (membersList.length === 0) {
       throw new Error("Geen ontvangers gevonden");
+    }
+
+    // Check recipient count limit
+    if (membersList.length > RATE_LIMIT.MAX_RECIPIENTS_PER_MAILING) {
+      console.warn(`Too many recipients: ${membersList.length} > ${RATE_LIMIT.MAX_RECIPIENTS_PER_MAILING}`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Te veel ontvangers (${membersList.length}). Maximum is ${RATE_LIMIT.MAX_RECIPIENTS_PER_MAILING}. Splits de mailing op in kleinere batches.` 
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     console.log(`Sending to ${membersList.length} recipients`);
@@ -285,7 +369,10 @@ const handler = async (req: Request): Promise<Response> => {
       })
       .eq("id", mailingId);
 
-    console.log(`Mailing complete. Success: ${successCount}, Failed: ${failCount}`);
+    // Record successful mailing for rate limiting
+    recordMailingSent(userId);
+
+    console.log(`Mailing complete by user ${userId}. Success: ${successCount}, Failed: ${failCount}`);
 
     return new Response(
       JSON.stringify({

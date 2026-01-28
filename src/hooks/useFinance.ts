@@ -164,7 +164,7 @@ export function useDeleteExpense() {
   });
 }
 
-// Upload receipt
+// Upload receipt - returns the file path (not a public URL since bucket is private)
 export async function uploadReceipt(file: File, expenseId: string): Promise<string | null> {
   const fileExt = file.name.split('.').pop();
   const fileName = `${expenseId}-${Date.now()}.${fileExt}`;
@@ -179,6 +179,38 @@ export async function uploadReceipt(file: File, expenseId: string): Promise<stri
     return null;
   }
 
+  // Return the file path - signed URLs will be generated when viewing
+  // We store a reference URL format that can be parsed later
   const { data } = supabase.storage.from('receipts').getPublicUrl(filePath);
   return data.publicUrl;
+}
+
+// Get a signed URL for a receipt (for private bucket access)
+export async function getReceiptSignedUrl(receiptUrl: string | null): Promise<string | null> {
+  if (!receiptUrl) return null;
+
+  try {
+    // Extract file path from the URL
+    const url = new URL(receiptUrl);
+    const pathMatch = url.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/receipts\/(.+)/);
+    
+    if (!pathMatch) {
+      return receiptUrl; // Not a storage URL, return as-is
+    }
+
+    const filePath = decodeURIComponent(pathMatch[1]);
+    
+    const { data, error } = await supabase.storage
+      .from('receipts')
+      .createSignedUrl(filePath, 3600); // 1 hour expiry
+
+    if (error) {
+      console.error("Error creating signed URL for receipt:", error);
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch {
+    return null;
+  }
 }

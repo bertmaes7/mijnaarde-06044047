@@ -237,7 +237,25 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       if (existingAuthUser) {
-        // Link existing auth user to member
+        // Check if this auth user is already linked to another member
+        const { data: existingMemberLink } = await adminClient
+          .from("members")
+          .select("id, first_name, last_name")
+          .eq("auth_user_id", existingAuthUser.id)
+          .single();
+
+        if (existingMemberLink && existingMemberLink.id !== memberId) {
+          // Auth user is linked to a different member
+          console.log(`Auth user already linked to member: ${existingMemberLink.first_name} ${existingMemberLink.last_name}`);
+          return new Response(
+            JSON.stringify({ 
+              error: `Dit e-mailadres is al gekoppeld aan een ander lid (${existingMemberLink.first_name} ${existingMemberLink.last_name}). Pas het e-mailadres aan of verwijder het dubbele lid.` 
+            }),
+            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+
+        // Link existing auth user to this member
         const { error: linkError } = await adminClient
           .from("members")
           .update({
@@ -246,7 +264,17 @@ serve(async (req: Request): Promise<Response> => {
           })
           .eq("id", memberId);
 
-        if (linkError) throw linkError;
+        if (linkError) {
+          console.error("Error linking member:", linkError);
+          // Check if it's a duplicate key error
+          if (linkError.code === "23505") {
+            return new Response(
+              JSON.stringify({ error: "Dit e-mailadres is al gekoppeld aan een ander lid. Controleer op dubbele leden." }),
+              { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+            );
+          }
+          throw linkError;
+        }
 
         // Add roles
         await adminClient.from("user_roles").upsert(

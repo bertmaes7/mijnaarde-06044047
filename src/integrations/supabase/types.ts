@@ -340,6 +340,10 @@ export type Database = {
       mailings: {
         Row: {
           created_at: string
+          filter_city: string | null
+          filter_company_id: string | null
+          filter_membership_type: string | null
+          filter_status: string | null
           id: string
           scheduled_at: string | null
           selected_member_ids: string[] | null
@@ -352,6 +356,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          filter_city?: string | null
+          filter_company_id?: string | null
+          filter_membership_type?: string | null
+          filter_status?: string | null
           id?: string
           scheduled_at?: string | null
           selected_member_ids?: string[] | null
@@ -364,6 +372,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          filter_city?: string | null
+          filter_company_id?: string | null
+          filter_membership_type?: string | null
+          filter_status?: string | null
           id?: string
           scheduled_at?: string | null
           selected_member_ids?: string[] | null

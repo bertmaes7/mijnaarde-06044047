@@ -145,6 +145,11 @@ export default function Mailings() {
         selection_type: formData.selection_type,
         selected_member_ids: formData.selection_type === "manual" ? formData.selected_member_ids : [],
         scheduled_at: scheduledAt,
+        // Save filters
+        filter_status: recipientFilters.status,
+        filter_company_id: recipientFilters.companyId,
+        filter_city: recipientFilters.city,
+        filter_membership_type: recipientFilters.membershipType,
       };
 
       const { error: saveError } = await supabase
@@ -205,12 +210,13 @@ export default function Mailings() {
     setSelectedMailing(mailing);
     setIsCreating(false);
     setMemberSearch("");
-    // Reset filters when opening a mailing
+    // Restore saved filters from mailing
+    const savedStatus = mailing.filter_status as "all" | "active" | "inactive" | null;
     setRecipientFilters({
-      status: "all",
-      companyId: "all",
-      city: "all",
-      membershipType: "all",
+      status: savedStatus === "active" || savedStatus === "inactive" ? savedStatus : "all",
+      companyId: mailing.filter_company_id || "all",
+      city: mailing.filter_city || "all",
+      membershipType: mailing.filter_membership_type || "all",
     });
     const scheduledDate = mailing.scheduled_at ? new Date(mailing.scheduled_at) : null;
     setFormData({
@@ -277,6 +283,11 @@ export default function Mailings() {
       selected_member_ids: formData.selection_type === "manual" ? formData.selected_member_ids : [],
       scheduled_at: scheduledAt,
       status: (asDraft ? "draft" : scheduledAt ? "scheduled" : "draft") as "draft" | "scheduled",
+      // Save filters
+      filter_status: recipientFilters.status,
+      filter_company_id: recipientFilters.companyId,
+      filter_city: recipientFilters.city,
+      filter_membership_type: recipientFilters.membershipType,
     };
 
     if (isCreating) {

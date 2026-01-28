@@ -34,6 +34,10 @@ export type Mailing = {
   created_at: string;
   updated_at: string;
   template?: MailingTemplate | null;
+  filter_status: string | null;
+  filter_company_id: string | null;
+  filter_city: string | null;
+  filter_membership_type: string | null;
 };
 
 // Assets hooks

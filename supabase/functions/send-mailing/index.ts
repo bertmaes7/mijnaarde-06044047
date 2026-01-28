@@ -109,6 +109,39 @@ function normalizeCRLF(content: string): string {
   return content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '\r\n');
 }
 
+function generateUnsubscribeToken(memberId: string): string {
+  // Create a simple token with memberId and timestamp
+  const data = `${memberId}:${Date.now()}`;
+  return btoa(data);
+}
+
+function generateUnsubscribeUrl(memberId: string, baseUrl: string): string {
+  const token = generateUnsubscribeToken(memberId);
+  return `${baseUrl}/unsubscribe?id=${memberId}&token=${encodeURIComponent(token)}`;
+}
+
+function addUnsubscribeFooter(htmlContent: string, unsubscribeUrl: string): string {
+  const footer = `
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; font-size: 12px; color: #666666;">
+      <p style="margin: 0;">
+        Wil je deze e-mails niet meer ontvangen? 
+        <a href="${unsubscribeUrl}" style="color: #666666; text-decoration: underline;">Schrijf je hier uit</a>
+      </p>
+    </div>
+  `;
+  
+  // Try to insert before </body>, otherwise append to end
+  if (htmlContent.includes('</body>')) {
+    return htmlContent.replace('</body>', `${footer}</body>`);
+  }
+  return htmlContent + footer;
+}
+
+function addUnsubscribeFooterText(textContent: string, unsubscribeUrl: string): string {
+  const footer = `\n\n---\nWil je deze e-mails niet meer ontvangen? Ga naar: ${unsubscribeUrl}`;
+  return textContent + footer;
+}
+
 function replacePlaceholders(content: string, member: Member, assets: MailingAsset[]): string {
   let result = content;
   
@@ -346,6 +379,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending to ${membersList.length} recipients`);
 
+    // Determine base URL for unsubscribe links
+    const origin = req.headers.get("origin") || "https://mijnaarde.lovable.app";
+    console.log(`Using origin for unsubscribe links: ${origin}`);
+
     // Initialize SMTP client
     // Port 465 uses implicit TLS, port 587 uses STARTTLS
     const useTls = smtpPort === 465;
@@ -374,10 +411,17 @@ const handler = async (req: Request): Promise<Response> => {
 
       try {
         const personalizedSubject = replacePlaceholders(templateData.subject, member, assetsData);
-        const personalizedHtml = replacePlaceholders(templateData.html_content, member, assetsData);
-        const personalizedText = templateData.text_content 
+        let personalizedHtml = replacePlaceholders(templateData.html_content, member, assetsData);
+        let personalizedText = templateData.text_content 
           ? replacePlaceholders(templateData.text_content, member, assetsData)
           : undefined;
+
+        // Generate unsubscribe URL and add footer to emails
+        const unsubscribeUrl = generateUnsubscribeUrl(member.id, origin);
+        personalizedHtml = addUnsubscribeFooter(personalizedHtml, unsubscribeUrl);
+        if (personalizedText) {
+          personalizedText = addUnsubscribeFooterText(personalizedText, unsubscribeUrl);
+        }
 
         await client.send({
           from: `${smtpFromName} <${smtpFromEmail}>`,

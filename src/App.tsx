@@ -25,6 +25,7 @@ import EventRegistrations from "./pages/EventRegistrations";
 import PublicEvent from "./pages/PublicEvent";
 import Tools from "./pages/Tools";
 import NotFound from "./pages/NotFound";
+import Unsubscribe from "./pages/Unsubscribe";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
             {/* Public routes */}
             <Route path="/auth" element={<Auth />} />
             <Route path="/change-password" element={<ChangePassword />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/events/:id" element={<PublicEvent />} />
             {/* Member portal (logged in members) */}
             <Route

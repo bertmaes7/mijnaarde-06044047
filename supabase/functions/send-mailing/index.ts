@@ -6,6 +6,7 @@ import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 const ALLOWED_ORIGINS = [
   "https://mijnaarde.lovable.app",
   "https://id-preview--720a5d5a-c520-4ef0-9d57-c342d034b40f.lovable.app",
+  "https://720a5d5a-c520-4ef0-9d57-c342d034b40f.lovableproject.com",
 ];
 
 // Rate limiting configuration

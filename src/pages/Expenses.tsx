@@ -54,6 +54,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { ReceiptLink } from "@/components/finance/ReceiptLink";
 import {
   ArrowLeft,
   Plus,
@@ -62,8 +63,6 @@ import {
   User,
   Building2,
   Upload,
-  FileText,
-  ExternalLink,
 } from "lucide-react";
 
 const expenseSchema = z.object({
@@ -472,19 +471,7 @@ export default function Expenses() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {expense.receipt_url ? (
-                          <a
-                            href={expense.receipt_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-primary hover:underline"
-                          >
-                            <FileText className="h-4 w-4" />
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
+                        <ReceiptLink receiptUrl={expense.receipt_url} />
                       </TableCell>
                       <TableCell className="text-right font-medium text-red-600">
                         {formatCurrency(Number(expense.amount))}

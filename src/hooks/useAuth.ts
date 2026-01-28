@@ -61,10 +61,13 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      // When a new session is detected, set isLoading to true to prevent
+      // premature redirects before roles are fetched
       setState((prev) => ({
         ...prev,
         session,
         user: session?.user ?? null,
+        isLoading: session?.user ? true : prev.isLoading,
       }));
 
       // Defer data fetching with setTimeout to prevent deadlock

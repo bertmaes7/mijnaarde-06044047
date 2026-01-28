@@ -16,7 +16,6 @@ const mainNavItems = [
   { href: "/members", label: "Leden", icon: Users },
   { href: "/companies", label: "Bedrijven", icon: Building2 },
   { href: "/events", label: "Events", icon: Calendar },
-  { href: "/tools", label: "Tools", icon: Wrench },
 ];
 
 const financeSubItems = [
@@ -79,11 +78,14 @@ export function Sidebar() {
             );
           })}
 
+          {/* Mailing Section - under Bedrijven */}
+          <MailingNav location={location} />
+
           {/* Finance Section */}
           <FinanceNav location={location} />
           
-          {/* Mailing Section */}
-          <MailingNav location={location} />
+          {/* Tools - at the bottom */}
+          <ToolsNav location={location} />
         </nav>
 
         {/* User & Footer */}
@@ -208,5 +210,24 @@ function MailingNav({ location }: { location: ReturnType<typeof useLocation> }) 
         })}
       </CollapsibleContent>
     </Collapsible>
+  );
+}
+
+function ToolsNav({ location }: { location: ReturnType<typeof useLocation> }) {
+  const isActive = location.pathname === "/tools";
+
+  return (
+    <Link
+      to="/tools"
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+        isActive
+          ? "bg-primary text-primary-foreground"
+          : "text-sidebar-foreground hover:bg-sidebar-accent"
+      )}
+    >
+      <Wrench className="h-5 w-5" />
+      Tools
+    </Link>
   );
 }

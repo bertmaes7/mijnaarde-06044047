@@ -231,8 +231,10 @@ export default function Mailings() {
 
     if (isCreating) {
       createMailing.mutate(data, {
-        onSuccess: () => {
+        onSuccess: (newMailing) => {
+          // Stay on edit screen with the newly created mailing
           setIsCreating(false);
+          setSelectedMailing(newMailing as Mailing);
         },
       });
     } else if (selectedMailing) {
@@ -240,7 +242,8 @@ export default function Mailings() {
         { id: selectedMailing.id, data },
         {
           onSuccess: () => {
-            setSelectedMailing(null);
+            // Stay on edit screen, update the selectedMailing with new data
+            setSelectedMailing((prev) => prev ? { ...prev, ...data } as Mailing : null);
           },
         }
       );

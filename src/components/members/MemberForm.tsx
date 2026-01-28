@@ -174,7 +174,7 @@ export function MemberForm({ member, onSubmit, isLoading }: MemberFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+      <form id="member-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Profile Photo Section */}
           <Card className="lg:col-span-1 card-elevated">

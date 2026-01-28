@@ -185,10 +185,110 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Generate temporary password for new account
+    // FIRST: Check if an auth user already exists with this email
+    // This avoids triggering handle_new_user which creates duplicate members
+    console.log("Checking for existing auth user with email:", member.email);
+    
+    let existingAuthUser = null;
+    let page = 1;
+    const perPage = 1000;
+    
+    while (!existingAuthUser) {
+      const { data: usersPage, error: pageError } = await adminClient.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+      
+      if (pageError) {
+        console.error("Error listing users:", pageError);
+        break;
+      }
+      
+      const found = usersPage.users.find(u => u.email?.toLowerCase() === member.email.toLowerCase());
+      if (found) {
+        existingAuthUser = found;
+        console.log(`Found existing auth user: ${found.id}`);
+        break;
+      }
+      
+      if (usersPage.users.length < perPage) {
+        break;
+      }
+      
+      page++;
+    }
+
+    // If auth user exists, link them to this member
+    if (existingAuthUser) {
+      console.log("Auth user already exists, linking to member...");
+      
+      // Check if this auth user is already linked to another member
+      const { data: conflictingMembers } = await adminClient
+        .from("members")
+        .select("id, first_name, last_name, email")
+        .eq("auth_user_id", existingAuthUser.id);
+      
+      if (conflictingMembers && conflictingMembers.length > 0) {
+        const otherMember = conflictingMembers.find(m => m.id !== memberId);
+        if (otherMember) {
+          // Check if it's an auto-created duplicate with same email
+          if (otherMember.email?.toLowerCase() === member.email.toLowerCase()) {
+            console.log(`Removing auto-created duplicate member: ${otherMember.id}`);
+            await adminClient.from("members").delete().eq("id", otherMember.id);
+          } else {
+            return new Response(
+              JSON.stringify({ 
+                error: `Dit e-mailadres heeft al een account dat gekoppeld is aan een ander lid (${otherMember.first_name} ${otherMember.last_name}). Gebruik de duplicaten-checker in Tools.` 
+              }),
+              { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+            );
+          }
+        }
+      }
+
+      // Link existing auth user to this member
+      const { error: linkError } = await adminClient
+        .from("members")
+        .update({
+          auth_user_id: existingAuthUser.id,
+          is_admin: true,
+        })
+        .eq("id", memberId);
+
+      if (linkError) {
+        console.error("Error linking member:", linkError);
+        if (linkError.code === "23505") {
+          return new Response(
+            JSON.stringify({ error: "Dit e-mailadres is al gekoppeld aan een ander lid. Verwijder het dubbele lid via Tools." }),
+            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+        throw linkError;
+      }
+
+      // Add roles
+      await adminClient.from("user_roles").upsert(
+        [
+          { user_id: existingAuthUser.id, role: "admin" },
+          { user_id: existingAuthUser.id, role: "member" },
+        ],
+        { onConflict: "user_id,role" }
+      );
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Bestaand account gekoppeld en beheerdersrechten toegekend",
+          accountCreated: false,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // No existing auth user found - create a new one
+    console.log("No existing auth user found, creating new one...");
     const tempPassword = generateTemporaryPassword();
 
-    // Try to create auth user
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: member.email,
       password: tempPassword,
@@ -196,182 +296,9 @@ serve(async (req: Request): Promise<Response> => {
       user_metadata: {
         first_name: member.first_name,
         last_name: member.last_name,
+        skip_member_creation: true, // Signal to handle_new_user to skip creating a member
       },
     });
-
-    // If user already exists, find and link them
-    if (authError && authError.message.includes("already been registered")) {
-      console.log("User already exists, searching for existing auth user...");
-      
-      // Search through all pages to find the user
-      let existingAuthUser = null;
-      let page = 1;
-      const perPage = 1000;
-      
-      while (!existingAuthUser) {
-        const { data: usersPage, error: pageError } = await adminClient.auth.admin.listUsers({
-          page,
-          perPage,
-        });
-        
-        if (pageError) {
-          console.error("Error listing users:", pageError);
-          break;
-        }
-        
-        console.log(`Searching page ${page}, found ${usersPage.users.length} users`);
-        
-        const found = usersPage.users.find(u => u.email?.toLowerCase() === member.email.toLowerCase());
-        if (found) {
-          existingAuthUser = found;
-          console.log(`Found existing user: ${found.id}`);
-          break;
-        }
-        
-        // If we got fewer users than perPage, we've reached the end
-        if (usersPage.users.length < perPage) {
-          break;
-        }
-        
-        page++;
-      }
-
-      if (existingAuthUser) {
-        // Check if this auth user is already linked to another member
-        const { data: existingMemberLinks } = await adminClient
-          .from("members")
-          .select("id, first_name, last_name")
-          .eq("auth_user_id", existingAuthUser.id);
-
-        const linkedToOther = existingMemberLinks?.find(m => m.id !== memberId);
-        
-        if (linkedToOther) {
-          // Auth user is linked to a different member - this shouldn't happen normally
-          // The user should use the duplicate checker to resolve this
-          console.log(`Auth user already linked to member: ${linkedToOther.first_name} ${linkedToOther.last_name}`);
-          return new Response(
-            JSON.stringify({ 
-              error: `Dit e-mailadres heeft al een account dat gekoppeld is aan een ander lid (${linkedToOther.first_name} ${linkedToOther.last_name}). Gebruik de duplicaten-checker in Tools om dit op te lossen.` 
-            }),
-            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-          );
-        }
-        
-        // Check if THIS member already has a different auth_user_id linked
-        const { data: currentMember } = await adminClient
-          .from("members")
-          .select("auth_user_id")
-          .eq("id", memberId)
-          .single();
-          
-        if (currentMember?.auth_user_id && currentMember.auth_user_id !== existingAuthUser.id) {
-          // This member already has a different auth account - just update admin flag
-          const { error: updateError } = await adminClient
-            .from("members")
-            .update({ is_admin: true })
-            .eq("id", memberId);
-
-          if (updateError) throw updateError;
-
-          await adminClient
-            .from("user_roles")
-            .upsert({ user_id: currentMember.auth_user_id, role: "admin" }, { onConflict: "user_id,role" });
-
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              message: "Beheerdersrechten toegekend aan bestaand account",
-              accountCreated: false 
-            }),
-            { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-          );
-        }
-
-        // Before linking, check if there's ANOTHER member with this auth_user_id
-        // This can happen when the handle_new_user trigger creates a duplicate member
-        const { data: conflictingMembers } = await adminClient
-          .from("members")
-          .select("id, first_name, last_name, email")
-          .eq("auth_user_id", existingAuthUser.id);
-        
-        if (conflictingMembers && conflictingMembers.length > 0) {
-          const otherMember = conflictingMembers.find(m => m.id !== memberId);
-          if (otherMember) {
-            // Delete the auto-created duplicate member (created by handle_new_user trigger)
-            // if it has the same email as the one we're trying to link
-            if (otherMember.email?.toLowerCase() === member.email.toLowerCase()) {
-              console.log(`Removing auto-created duplicate member: ${otherMember.id}`);
-              await adminClient.from("members").delete().eq("id", otherMember.id);
-            } else {
-              // Different email - this is a real conflict
-              return new Response(
-                JSON.stringify({ 
-                  error: `Dit e-mailadres heeft al een account dat gekoppeld is aan een ander lid (${otherMember.first_name} ${otherMember.last_name}). Gebruik de duplicaten-checker in Tools.` 
-                }),
-                { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-              );
-            }
-          }
-        }
-
-        // Link existing auth user to this member
-        const { error: linkError } = await adminClient
-          .from("members")
-          .update({
-            auth_user_id: existingAuthUser.id,
-            is_admin: true,
-          })
-          .eq("id", memberId);
-
-        if (linkError) {
-          console.error("Error linking member:", linkError);
-          if (linkError.code === "23505") {
-            // Still a conflict - fetch details for better error message
-            const { data: conflictMember } = await adminClient
-              .from("members")
-              .select("first_name, last_name")
-              .eq("auth_user_id", existingAuthUser.id)
-              .neq("id", memberId)
-              .single();
-            
-            const conflictName = conflictMember 
-              ? `${conflictMember.first_name} ${conflictMember.last_name}`
-              : "een ander lid";
-            
-            return new Response(
-              JSON.stringify({ error: `Dit e-mailadres is al gekoppeld aan ${conflictName}. Verwijder het dubbele lid via Tools.` }),
-              { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-            );
-          }
-          throw linkError;
-        }
-
-        // Add roles
-        await adminClient.from("user_roles").upsert(
-          [
-            { user_id: existingAuthUser.id, role: "admin" },
-            { user_id: existingAuthUser.id, role: "member" },
-          ],
-          { onConflict: "user_id,role" }
-        );
-
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: "Bestaand account gekoppeld en beheerdersrechten toegekend",
-            accountCreated: false,
-          }),
-          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      } else {
-        // Couldn't find the user even though it exists - this shouldn't happen
-        console.error("User exists but couldn't be found in search");
-        return new Response(
-          JSON.stringify({ error: "Account bestaat maar kon niet worden gekoppeld. Neem contact op met support." }),
-          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-    }
 
     if (authError) {
       console.error("Error creating auth user:", authError);
@@ -379,6 +306,20 @@ serve(async (req: Request): Promise<Response> => {
         JSON.stringify({ error: `Fout bij aanmaken account: ${authError.message}` }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
+    }
+
+    // Check if handle_new_user created a duplicate - if so, delete it
+    const { data: autoCreatedMembers } = await adminClient
+      .from("members")
+      .select("id")
+      .eq("auth_user_id", authData.user.id)
+      .neq("id", memberId);
+    
+    if (autoCreatedMembers && autoCreatedMembers.length > 0) {
+      console.log("Deleting auto-created duplicate members:", autoCreatedMembers.map(m => m.id));
+      for (const m of autoCreatedMembers) {
+        await adminClient.from("members").delete().eq("id", m.id);
+      }
     }
 
     // Link member to auth user and set flags

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,7 +90,58 @@ export default function MailingTemplates() {
   const [newTextBlock, setNewTextBlock] = useState({ key: "", label: "", value: "" });
   const [isTextBlockDialogOpen, setIsTextBlockDialogOpen] = useState(false);
 
+  // Autosave state
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const lastSavedFormData = useRef<typeof formData | null>(null);
+
   const textAssets = assets?.filter((a) => a.type === "text") || [];
+
+  // Autosave function for existing templates
+  const performAutosave = useCallback(async () => {
+    if (!selectedTemplate || isCreating) return;
+    
+    // Check if form data has changed since last save
+    const currentData = JSON.stringify(formData);
+    const lastData = JSON.stringify(lastSavedFormData.current);
+    
+    if (currentData === lastData) return;
+    
+    // Validate required fields
+    if (!formData.name || !formData.subject || (!formData.html_content && !formData.text_content)) {
+      return;
+    }
+    
+    setIsAutoSaving(true);
+    try {
+      await updateTemplate.mutateAsync({ id: selectedTemplate.id, data: formData });
+      lastSavedFormData.current = { ...formData };
+      setLastSavedAt(new Date());
+    } catch (error) {
+      console.error("Autosave failed:", error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [selectedTemplate, isCreating, formData, updateTemplate]);
+
+  // Autosave effect - runs every 30 seconds
+  useEffect(() => {
+    if (!selectedTemplate || isCreating) return;
+
+    const interval = setInterval(() => {
+      performAutosave();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [selectedTemplate, isCreating, performAutosave]);
+
+  // Initialize lastSavedFormData when editing starts
+  useEffect(() => {
+    if (selectedTemplate && !isCreating) {
+      lastSavedFormData.current = { ...formData };
+      setLastSavedAt(null);
+    }
+  }, [selectedTemplate?.id]); // Only run when template changes
 
   const handleTextBlockValueChange = (id: string, value: string) => {
     setEditedTextBlocks((prev) => ({ ...prev, [id]: value }));
@@ -239,18 +290,36 @@ export default function MailingTemplates() {
     return (
       <MainLayout>
         <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={handleBack}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                {isCreating ? "Nieuwe Template" : "Template bewerken"}
-              </h1>
-              <p className="text-muted-foreground">
-                {isCreating ? "Maak een nieuwe e-mailtemplate" : `Bewerk "${selectedTemplate?.name}"`}
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={handleBack}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  {isCreating ? "Nieuwe Template" : "Template bewerken"}
+                </h1>
+                <p className="text-muted-foreground">
+                  {isCreating ? "Maak een nieuwe e-mailtemplate" : `Bewerk "${selectedTemplate?.name}"`}
+                </p>
+              </div>
             </div>
+            {!isCreating && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {isAutoSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Opslaan...</span>
+                  </>
+                ) : lastSavedAt ? (
+                  <span>
+                    Automatisch opgeslagen om {format(lastSavedAt, "HH:mm:ss", { locale: nl })}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/60">Autosave elke 30 sec</span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-6">

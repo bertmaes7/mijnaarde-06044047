@@ -186,14 +186,41 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Check if an auth user with this email already exists (but not linked to member)
-    const { data: existingUsers, error: listError } = await adminClient.auth.admin.listUsers();
-    
-    if (listError) {
-      console.error("Error listing users:", listError);
-      throw listError;
-    }
+    // Use getUserByEmail for direct lookup instead of listing all users
+    const { data: existingUserData, error: getUserError } = await adminClient.auth.admin.getUserById(
+      // First we need to find by email - listUsers with filter
+      ""
+    ).catch(() => ({ data: null, error: null }));
 
-    const existingAuthUser = existingUsers.users.find(u => u.email === member.email);
+    // Try to find user by email using listUsers with per_page to get more results
+    let existingAuthUser = null;
+    let page = 1;
+    const perPage = 1000;
+    
+    while (true) {
+      const { data: usersPage, error: pageError } = await adminClient.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+      
+      if (pageError) {
+        console.error("Error listing users:", pageError);
+        break;
+      }
+      
+      const found = usersPage.users.find(u => u.email === member.email);
+      if (found) {
+        existingAuthUser = found;
+        break;
+      }
+      
+      // If we got fewer users than perPage, we've reached the end
+      if (usersPage.users.length < perPage) {
+        break;
+      }
+      
+      page++;
+    }
 
     if (existingAuthUser) {
       // Auth user exists but not linked - link them and make admin

@@ -35,7 +35,7 @@ import {
 import { useCompany, useUpdateCompany, useDeleteCompany } from "@/hooks/useCompanies";
 import { useMembers } from "@/hooks/useMembers";
 import { MemberAvatar } from "@/components/members/MemberAvatar";
-import { WebsitePreview } from "@/components/members/WebsitePreview";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -57,6 +57,7 @@ import {
   Truck,
   Pencil,
   Trash2,
+  ExternalLink,
 } from "lucide-react";
 
 const companySchema = z.object({
@@ -170,7 +171,7 @@ export default function CompanyDetail() {
     navigate("/companies");
   };
 
-  const websiteUrl = form.watch("website");
+
 
   if (isLoading) {
     return (
@@ -283,9 +284,25 @@ export default function CompanyDetail() {
                     render={({ field }) => (
                       <FormItem className="sm:col-span-2">
                         <FormLabel>Website</FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://www.acme.be" {...field} />
-                        </FormControl>
+                        <div className="flex gap-2">
+                          <FormControl>
+                            <Input placeholder="https://www.acme.be" {...field} />
+                          </FormControl>
+                          {field.value && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => {
+                                const url = field.value?.startsWith("http") ? field.value : `https://${field.value}`;
+                                window.open(url, "_blank");
+                              }}
+                              title="Open website"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -308,19 +325,6 @@ export default function CompanyDetail() {
                       </FormItem>
                     )}
                   />
-                </CardContent>
-              </Card>
-
-              {/* Website Preview */}
-              <Card className="lg:col-span-1 card-elevated">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Globe className="h-5 w-5 text-primary" />
-                    Website Preview
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <WebsitePreview url={websiteUrl} />
                 </CardContent>
               </Card>
 

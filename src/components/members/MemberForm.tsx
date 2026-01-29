@@ -33,7 +33,7 @@ import { toast } from "sonner";
 import { MemberAvatar } from "./MemberAvatar";
 import { ProfilePhotoUpload } from "./ProfilePhotoUpload";
 import { SocialMediaFields } from "./SocialMediaFields";
-import { WebsitePreview } from "./WebsitePreview";
+import { ExternalLink } from "lucide-react";
 import { MembershipFields } from "./MembershipFields";
 import { TagInput } from "./TagInput";
 import { Save, User, Building2, MapPin, Globe, Calendar, CreditCard, ShieldCheck, Loader2 } from "lucide-react";
@@ -295,7 +295,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
 
   const firstName = form.watch("first_name");
   const lastName = form.watch("last_name");
-  const personalUrl = form.watch("personal_url");
+  
 
   return (
     <Form {...form}>
@@ -419,12 +419,28 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Persoonlijke URL</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://www.mijnwebsite.be"
-                        {...field}
-                      />
-                    </FormControl>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input
+                          placeholder="https://www.mijnwebsite.be"
+                          {...field}
+                        />
+                      </FormControl>
+                      {field.value && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            const url = field.value?.startsWith("http") ? field.value : `https://${field.value}`;
+                            window.open(url, "_blank");
+                          }}
+                          title="Open website"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -636,10 +652,6 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
             <SocialMediaFields control={form.control} />
           </div>
 
-          {/* Website Preview */}
-          <div className="lg:col-span-1">
-            <WebsitePreview url={personalUrl} />
-          </div>
 
           {/* Notes */}
           <Card className="lg:col-span-3 card-elevated">

@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      annual_report_inventory: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string
+          fiscal_year: number
+          id: string
+          notes: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category: string
+          created_at?: string
+          description: string
+          fiscal_year: number
+          id?: string
+          notes?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string
+          fiscal_year?: number
+          id?: string
+          notes?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           address: string | null

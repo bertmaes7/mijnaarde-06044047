@@ -19,6 +19,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useIncome, useExpenses } from "@/hooks/useFinance";
+import { InventoryList } from "@/components/finance/InventoryList";
 import { ArrowLeft, Printer, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -876,11 +877,14 @@ export default function AnnualReport() {
             </CardContent>
           </Card>
 
-          {/* 5. Belangrijke rechten en verplichtingen */}
+          {/* 5. Inventarislijst vermogensbestanddelen */}
+          <InventoryList fiscalYear={selectedYear} />
+
+          {/* 6. Belangrijke rechten en verplichtingen */}
           <Card className="card-elevated print:shadow-none print:border print:border-gray-300">
             <CardHeader>
               <CardTitle className="text-lg">
-                5. Belangrijke rechten en verplichtingen die niet in cijfers kunnen worden
+                6. Belangrijke rechten en verplichtingen die niet in cijfers kunnen worden
                 weergegeven
               </CardTitle>
             </CardHeader>

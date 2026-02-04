@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/accordion";
 import { useIncome, useExpenses } from "@/hooks/useFinance";
 import { useInventory, INVENTORY_TYPES } from "@/hooks/useInventory";
+import { useOrganizationSettings } from "@/hooks/useOrganizationSettings";
 import { ArrowLeft, Printer, FileText, ExternalLink, FileDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
@@ -35,15 +36,6 @@ const formatDateBelgian = (date: Date) => {
     month: "long",
     year: "numeric",
   });
-};
-
-// Organization info - could be fetched from settings
-const ORGANIZATION = {
-  name: "Mijn Aarde vzw",
-  enterpriseNumber: "1030728334",
-  address: "Hügerlaan 14",
-  postalCode: "2280",
-  city: "Grobbendonk",
 };
 
 // Map expense categories to official report categories
@@ -72,9 +64,10 @@ export default function AnnualReport() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear - 1);
   const [approvalDate, setApprovalDate] = useState("");
-  const [signatory1, setSignatory1] = useState("");
-  const [signatory2, setSignatory2] = useState("");
+  const [selectedSignatory1, setSelectedSignatory1] = useState("");
+  const [selectedSignatory2, setSelectedSignatory2] = useState("");
 
+  const { organization, isLoading: orgLoading } = useOrganizationSettings();
   const [notes, setNotes] = useState({
     waarderingsregels: "",
     aanpassingWaardering: "",
@@ -226,7 +219,10 @@ export default function AnnualReport() {
 
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
-  const isLoading = incomeLoading || expensesLoading || inventoryLoading;
+  const isLoading = incomeLoading || expensesLoading || inventoryLoading || orgLoading;
+
+  // Get available directors for dropdown
+  const availableDirectors = organization.directors.filter((d) => d.name);
 
   if (isLoading) {
     return (
@@ -296,16 +292,22 @@ export default function AnnualReport() {
             <CardContent className="pt-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-2xl font-bold">{ORGANIZATION.name}</h2>
-                  <p className="text-muted-foreground print:text-gray-600">
-                    Ond.nr. {ORGANIZATION.enterpriseNumber}
-                  </p>
-                  <p className="text-muted-foreground print:text-gray-600">
-                    {ORGANIZATION.address}
-                  </p>
-                  <p className="text-muted-foreground print:text-gray-600">
-                    {ORGANIZATION.postalCode} {ORGANIZATION.city}
-                  </p>
+                  <h2 className="text-2xl font-bold">{organization.name}</h2>
+                  {organization.enterpriseNumber && (
+                    <p className="text-muted-foreground print:text-gray-600">
+                      Ond.nr. {organization.enterpriseNumber}
+                    </p>
+                  )}
+                  {organization.address && (
+                    <p className="text-muted-foreground print:text-gray-600">
+                      {organization.address}
+                    </p>
+                  )}
+                  {(organization.postalCode || organization.city) && (
+                    <p className="text-muted-foreground print:text-gray-600">
+                      {organization.postalCode} {organization.city}
+                    </p>
+                  )}
                 </div>
                 <FileText className="h-12 w-12 text-primary print:text-gray-700" />
               </div>
@@ -698,21 +700,43 @@ export default function AnnualReport() {
               <div className="grid grid-cols-2 gap-8 pt-8">
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Getekend:</p>
-                  <Input
-                    placeholder="Naam bestuurder 1"
-                    value={signatory1}
-                    onChange={(e) => setSignatory1(e.target.value)}
-                    className="border-0 border-b rounded-none print:border-0 print:bg-transparent"
-                  />
+                  {availableDirectors.length > 0 ? (
+                    <Select value={selectedSignatory1} onValueChange={setSelectedSignatory1}>
+                      <SelectTrigger className="border-0 border-b rounded-none print:border-0 print:bg-transparent">
+                        <SelectValue placeholder="Selecteer bestuurder" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableDirectors.map((director, index) => (
+                          <SelectItem key={index} value={director.name}>
+                            {director.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm text-muted-foreground border-b py-2">
+                      Geen bestuurders geconfigureerd
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground invisible">Getekend:</p>
-                  <Input
-                    placeholder="Naam bestuurder 2"
-                    value={signatory2}
-                    onChange={(e) => setSignatory2(e.target.value)}
-                    className="border-0 border-b rounded-none print:border-0 print:bg-transparent"
-                  />
+                  {availableDirectors.length > 0 ? (
+                    <Select value={selectedSignatory2} onValueChange={setSelectedSignatory2}>
+                      <SelectTrigger className="border-0 border-b rounded-none print:border-0 print:bg-transparent">
+                        <SelectValue placeholder="Selecteer bestuurder" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableDirectors.map((director, index) => (
+                          <SelectItem key={index} value={director.name}>
+                            {director.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm text-muted-foreground border-b py-2">-</p>
+                  )}
                 </div>
               </div>
             </CardContent>

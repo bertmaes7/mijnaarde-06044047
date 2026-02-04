@@ -5,9 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Printer, FileDown, Save } from "lucide-react";
 import { useInventory, INVENTORY_TYPES } from "@/hooks/useInventory";
 import { useBudget, useSaveBudget, BUDGET_CATEGORIES } from "@/hooks/useBudget";
+import { useOrganizationSettings } from "@/hooks/useOrganizationSettings";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -16,27 +24,22 @@ const formatCurrency = (amount: number) => {
   return amount.toFixed(2).replace(".", ",");
 };
 
-// Organization info - could be fetched from settings
-const ORGANIZATION = {
-  name: "Mijn Aarde vzw",
-  enterpriseNumber: "1030728334",
-  address: "Hügerlaan 14",
-  postalCode: "2280",
-  city: "Grobbendonk",
-};
-
 export default function Budget() {
   const currentYear = new Date().getFullYear();
   const [startDate, setStartDate] = useState(`${currentYear}-01-01`);
   const [endDate, setEndDate] = useState(`${currentYear}-12-31`);
   const [approvalDate, setApprovalDate] = useState("");
-  const [signatory, setSignatory] = useState("");
+  const [selectedSignatory, setSelectedSignatory] = useState("");
 
   // Get the fiscal year for inventory (use start year)
   const fiscalYear = new Date(startDate).getFullYear();
   const { data: inventory = [], isLoading: inventoryLoading } = useInventory(fiscalYear);
   const { data: budgetData = [], isLoading: budgetLoading } = useBudget(fiscalYear);
   const saveBudget = useSaveBudget();
+  const { organization, isLoading: orgLoading } = useOrganizationSettings();
+
+  // Get available directors for dropdown
+  const availableDirectors = organization.directors.filter((d) => d.name);
 
   // Budget amounts for income and expenses
   const [budgetExpenses, setBudgetExpenses] = useState({
@@ -154,7 +157,7 @@ export default function Budget() {
       incomeItems,
       expenseItems,
       approvalDate,
-      signatory,
+      signatory: selectedSignatory,
     });
   };
 
@@ -193,7 +196,7 @@ export default function Budget() {
     pdf.save(`begroting-${fiscalYear}.pdf`);
   };
 
-  const isLoading = inventoryLoading || budgetLoading;
+  const isLoading = inventoryLoading || budgetLoading || orgLoading;
 
   if (isLoading) {
     return (
@@ -255,16 +258,22 @@ export default function Budget() {
             <CardContent className="pt-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-2xl font-bold">{ORGANIZATION.name}</h2>
-                  <p className="text-muted-foreground print:text-gray-600">
-                    Ond.nr. <strong>{ORGANIZATION.enterpriseNumber}</strong>
-                  </p>
-                  <p className="text-muted-foreground print:text-gray-600">
-                    {ORGANIZATION.address}
-                  </p>
-                  <p className="text-muted-foreground print:text-gray-600">
-                    {ORGANIZATION.postalCode} {ORGANIZATION.city}
-                  </p>
+                  <h2 className="text-2xl font-bold">{organization.name}</h2>
+                  {organization.enterpriseNumber && (
+                    <p className="text-muted-foreground print:text-gray-600">
+                      Ond.nr. <strong>{organization.enterpriseNumber}</strong>
+                    </p>
+                  )}
+                  {organization.address && (
+                    <p className="text-muted-foreground print:text-gray-600">
+                      {organization.address}
+                    </p>
+                  )}
+                  {(organization.postalCode || organization.city) && (
+                    <p className="text-muted-foreground print:text-gray-600">
+                      {organization.postalCode} {organization.city}
+                    </p>
+                  )}
                 </div>
               </div>
               <h1 className="text-2xl font-bold mt-6 underline">
@@ -530,12 +539,24 @@ export default function Budget() {
               </div>
               <div className="pt-4">
                 <p className="text-sm text-muted-foreground">Getekend:</p>
-                <Input
-                  placeholder="naam bestuurder"
-                  value={signatory}
-                  onChange={(e) => setSignatory(e.target.value)}
-                  className="mt-2 w-64 border-0 border-b rounded-none print:border-0 print:bg-transparent"
-                />
+                {availableDirectors.length > 0 ? (
+                  <Select value={selectedSignatory} onValueChange={setSelectedSignatory}>
+                    <SelectTrigger className="mt-2 w-64 border-0 border-b rounded-none print:border-0 print:bg-transparent">
+                      <SelectValue placeholder="Selecteer bestuurder" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableDirectors.map((director, index) => (
+                        <SelectItem key={index} value={director.name}>
+                          {director.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-muted-foreground border-b py-2 w-64 mt-2">
+                    Geen bestuurders geconfigureerd
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>

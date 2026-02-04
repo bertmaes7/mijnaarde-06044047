@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { Resend } from "https://esm.sh/resend@4.0.0";
 
 // Rate limiting configuration
 const RATE_LIMIT = {
@@ -144,76 +145,9 @@ function replacePlaceholders(content: string, member: Member, assets: MailingAss
   return result;
 }
 
-// Send email using Microsoft Graph API
-async function sendEmailViaGraph(
-  accessToken: string,
-  fromEmail: string,
-  toEmail: string,
-  subject: string,
-  htmlContent: string,
-  textContent?: string
-): Promise<void> {
-  const message = {
-    message: {
-      subject: subject,
-      body: {
-        contentType: "HTML",
-        content: htmlContent,
-      },
-      toRecipients: [
-        {
-          emailAddress: {
-            address: toEmail,
-          },
-        },
-      ],
-    },
-    saveToSentItems: true,
-  };
-
-  const response = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(message),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Microsoft Graph API error: ${response.status} - ${errorText}`);
-  }
-}
-
-// Send email using SMTP via external service (for now using fetch to an SMTP relay)
-async function sendEmailViaSmtpRelay(
-  host: string,
-  port: number,
-  user: string,
-  password: string,
-  fromEmail: string,
-  fromName: string,
-  toEmail: string,
-  subject: string,
-  htmlContent: string,
-  textContent?: string
-): Promise<void> {
-  // For Microsoft 365, we'll use the Graph API approach or a relay service
-  // Since direct SMTP with STARTTLS doesn't work in Deno edge runtime,
-  // we'll throw an error suggesting to use an email service
-  
-  throw new Error(
-    "SMTP met STARTTLS wordt niet ondersteund in deze omgeving. " +
-    "Gebruik Resend of schakel terug naar Gmail SMTP (poort 465 met TLS)."
-  );
-}
-
 const handler = async (req: Request): Promise<Response> => {
   console.log("Send mailing function called - method:", req.method);
   
-  const origin = req.headers.get("origin");
-  console.log("Request origin:", origin);
   const corsHeaders = getCorsHeaders();
   
   if (req.method === "OPTIONS") {
@@ -239,13 +173,22 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     
-    console.log("Env vars present - URL:", !!supabaseUrl, "Anon:", !!supabaseAnonKey, "Service:", !!supabaseServiceKey);
+    console.log("Env vars present - URL:", !!supabaseUrl, "Anon:", !!supabaseAnonKey, "Service:", !!supabaseServiceKey, "Resend:", !!resendApiKey);
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
       console.error("Missing Supabase environment variables");
       return new Response(
         JSON.stringify({ error: "Server configuratie ontbreekt" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (!resendApiKey) {
+      console.error("Missing RESEND_API_KEY");
+      return new Response(
+        JSON.stringify({ error: "RESEND_API_KEY is niet geconfigureerd. Voeg deze toe in de Cloud secrets." }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -302,30 +245,9 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get SMTP settings
-    const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
-    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
-    const smtpUser = Deno.env.get("SMTP_USER");
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-    const smtpFromEmail = Deno.env.get("SMTP_FROM_EMAIL");
-    const smtpFromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde";
-
-    if (!smtpUser || !smtpPassword || !smtpFromEmail) {
-      console.error("Missing SMTP configuration");
-      throw new Error("SMTP configuratie ontbreekt. Controleer de instellingen.");
-    }
-
-    // Check if we're using Microsoft 365 (which requires STARTTLS and doesn't work)
-    if (smtpHost.includes("office365") || smtpHost.includes("outlook")) {
-      console.error("Microsoft 365 SMTP not supported - STARTTLS required");
-      return new Response(
-        JSON.stringify({ 
-          error: "Microsoft 365 SMTP werkt niet in deze omgeving (STARTTLS wordt niet ondersteund). " +
-                 "Oplossingen: 1) Gebruik Gmail SMTP met poort 465, of 2) Stel Resend in voor betrouwbare e-mailverzending."
-        }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
+    // Get from email from secrets (fallback to default)
+    const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "info@mijnaarde.com";
+    const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde";
 
     const { mailingId } = await req.json();
 
@@ -412,27 +334,13 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Sending to ${membersList.length} recipients`);
+    console.log(`Sending to ${membersList.length} recipients via Resend`);
 
     const requestOrigin = req.headers.get("origin") || "https://mijnaarde.lovable.app";
     console.log(`Using origin for unsubscribe links: ${requestOrigin}`);
-    console.log(`Connecting to SMTP server: ${smtpHost}:${smtpPort} (TLS: ${smtpPort === 465})`);
 
-    // Import denomailer dynamically for Gmail SMTP (port 465 with implicit TLS)
-    const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
-    
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: smtpPort === 465,
-        auth: {
-          username: smtpUser,
-          password: smtpPassword,
-        },
-      },
-    });
-    console.log("SMTP client initialized, attempting to send...");
+    // Initialize Resend client
+    const resend = new Resend(resendApiKey);
 
     let successCount = 0;
     let failCount = 0;
@@ -454,19 +362,17 @@ const handler = async (req: Request): Promise<Response> => {
           personalizedText = addUnsubscribeFooterText(personalizedText, unsubscribeUrl);
         }
 
-        // Normalize line endings to CRLF for SMTP compliance
-        personalizedHtml = personalizedHtml.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '\r\n');
-        if (personalizedText) {
-          personalizedText = personalizedText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n/g, '\r\n');
-        }
-
-        await client.send({
-          from: `${smtpFromName} <${smtpFromEmail}>`,
-          to: member.email,
+        const { error: sendError } = await resend.emails.send({
+          from: `${fromName} <${fromEmail}>`,
+          to: [member.email],
           subject: personalizedSubject,
-          content: personalizedText || "",
           html: personalizedHtml,
+          text: personalizedText,
         });
+
+        if (sendError) {
+          throw new Error(sendError.message);
+        }
 
         successCount++;
         console.log(`Email sent to ${member.email}`);
@@ -477,8 +383,6 @@ const handler = async (req: Request): Promise<Response> => {
         console.error(`Failed to send to ${member.email}:`, emailError);
       }
     }
-
-    await client.close();
 
     const newStatus = failCount === membersList.length ? "failed" : "sent";
     await supabase

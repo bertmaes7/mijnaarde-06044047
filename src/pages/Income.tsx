@@ -1,32 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -46,33 +22,29 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useIncome, useCreateIncome, useDeleteIncome } from "@/hooks/useFinance";
+import { useIncome, useCreateIncome, useUpdateIncome, useDeleteIncome } from "@/hooks/useFinance";
 import { useMembers } from "@/hooks/useMembers";
 import { useCompanies } from "@/hooks/useCompanies";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Plus,
   TrendingUp,
   Trash2,
+  Pencil,
   User,
   Building2,
 } from "lucide-react";
-
-const incomeSchema = z.object({
-  description: z.string().min(1, "Omschrijving is verplicht"),
-  amount: z.string().min(1, "Bedrag is verplicht"),
-  date: z.string().min(1, "Datum is verplicht"),
-  type: z.enum(["membership", "donation", "other"]),
-  member_id: z.string().optional(),
-  company_id: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-type IncomeFormData = z.infer<typeof incomeSchema>;
+import { Income as IncomeType } from "@/lib/supabase";
+import { IncomeFormDialog, IncomeFormData } from "@/components/finance/IncomeFormDialog";
+import {
+  FinanceFilters,
+  FinanceFiltersState,
+  getDefaultFilters,
+  filterByPeriod,
+  exportToCsv,
+} from "@/components/finance/FinanceFilters";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("nl-BE", {
@@ -85,29 +57,32 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString("nl-BE");
 };
 
+const incomeTypeOptions = [
+  { value: "membership", label: "Lidmaatschapsgeld" },
+  { value: "donation", label: "Donatie" },
+  { value: "other", label: "Overig" },
+];
+
 export default function Income() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingIncome, setEditingIncome] = useState<IncomeType | null>(null);
+  const [filters, setFilters] = useState<FinanceFiltersState>(getDefaultFilters());
+
   const { data: income = [], isLoading } = useIncome();
   const { data: members = [] } = useMembers("");
   const { data: companies = [] } = useCompanies();
   const createIncome = useCreateIncome();
+  const updateIncome = useUpdateIncome();
   const deleteIncome = useDeleteIncome();
 
-  const form = useForm<IncomeFormData>({
-    resolver: zodResolver(incomeSchema),
-    defaultValues: {
-      description: "",
-      amount: "",
-      date: new Date().toISOString().split("T")[0],
-      type: "membership",
-      member_id: "",
-      company_id: "",
-      notes: "",
-    },
-  });
+  const filteredIncome = useMemo(() => {
+    return filterByPeriod(income, filters);
+  }, [income, filters]);
+
+  const totalIncome = filteredIncome.reduce((sum, i) => sum + Number(i.amount), 0);
 
   const handleSubmit = async (data: IncomeFormData) => {
-    await createIncome.mutateAsync({
+    const incomeData = {
       description: data.description,
       amount: parseFloat(data.amount),
       date: data.date,
@@ -115,12 +90,58 @@ export default function Income() {
       member_id: data.member_id && data.member_id !== "none" ? data.member_id : null,
       company_id: data.company_id && data.company_id !== "none" ? data.company_id : null,
       notes: data.notes || null,
-    });
-    form.reset();
+    };
+
+    if (editingIncome) {
+      await updateIncome.mutateAsync({ id: editingIncome.id, data: incomeData });
+    } else {
+      await createIncome.mutateAsync(incomeData);
+    }
     setIsDialogOpen(false);
+    setEditingIncome(null);
   };
 
-  const totalIncome = income.reduce((sum, i) => sum + Number(i.amount), 0);
+  const handleEdit = (item: IncomeType) => {
+    setEditingIncome(item);
+    setIsDialogOpen(true);
+  };
+
+  const handleAddNew = () => {
+    setEditingIncome(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleExport = () => {
+    const columns = [
+      { key: "date", header: "Datum", format: (val: string) => formatDate(val) },
+      { key: "description", header: "Omschrijving" },
+      {
+        key: "type",
+        header: "Type",
+        format: (val: string) =>
+          val === "membership" ? "Lidmaatschapsgeld" : val === "donation" ? "Donatie" : "Overig",
+      },
+      {
+        key: "member",
+        header: "Lid",
+        format: (_: any, row: IncomeType) =>
+          row.member ? `${row.member.first_name} ${row.member.last_name}` : "",
+      },
+      {
+        key: "company",
+        header: "Bedrijf",
+        format: (_: any, row: IncomeType) => row.company?.name || "",
+      },
+      {
+        key: "amount",
+        header: "Bedrag",
+        format: (val: number) => val.toFixed(2).replace(".", ","),
+      },
+      { key: "notes", header: "Notities" },
+    ];
+    exportToCsv(filteredIncome, columns, "inkomsten");
+    toast.success("Export gedownload");
+  };
 
   return (
     <MainLayout>
@@ -138,174 +159,30 @@ export default function Income() {
                 Inkomsten
               </h1>
               <p className="mt-1 text-muted-foreground">
-                Totaal: {formatCurrency(totalIncome)}
+                Gefilterd totaal: {formatCurrency(totalIncome)}
               </p>
             </div>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Nieuwe inkomst
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="font-display flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  Nieuwe inkomst toevoegen
-                </DialogTitle>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Omschrijving *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Lidgeld 2024" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Bedrag (€) *</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" placeholder="100.00" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Datum *</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="membership">Lidmaatschapsgeld</SelectItem>
-                            <SelectItem value="donation">Donatie</SelectItem>
-                            <SelectItem value="other">Overig</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="member_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Gekoppeld lid</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || "none"}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecteer lid" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">Geen lid</SelectItem>
-                              {members.map((member) => (
-                                <SelectItem key={member.id} value={member.id}>
-                                  {member.first_name} {member.last_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="company_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Gekoppeld bedrijf</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || "none"}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecteer bedrijf" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">Geen bedrijf</SelectItem>
-                              {companies.map((company) => (
-                                <SelectItem key={company.id} value={company.id}>
-                                  {company.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notities</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Optionele notities..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Annuleren
-                    </Button>
-                    <Button type="submit" disabled={createIncome.isPending}>
-                      {createIncome.isPending ? "Opslaan..." : "Opslaan"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={handleAddNew} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nieuwe inkomst
+          </Button>
         </div>
+
+        {/* Filters */}
+        <FinanceFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          onExport={handleExport}
+          typeOptions={incomeTypeOptions}
+        />
 
         {/* Income Table */}
         <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <TrendingUp className="h-5 w-5 text-primary" />
-              Alle inkomsten
+              Inkomsten ({filteredIncome.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -313,9 +190,9 @@ export default function Income() {
               <div className="flex items-center justify-center py-12">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
               </div>
-            ) : income.length === 0 ? (
+            ) : filteredIncome.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
-                Nog geen inkomsten geregistreerd
+                Geen inkomsten gevonden
               </p>
             ) : (
               <Table>
@@ -326,11 +203,11 @@ export default function Income() {
                     <TableHead>Type</TableHead>
                     <TableHead>Gekoppeld aan</TableHead>
                     <TableHead className="text-right">Bedrag</TableHead>
-                    <TableHead className="w-[80px]">Acties</TableHead>
+                    <TableHead className="w-[100px]">Acties</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {income.map((item) => (
+                  {filteredIncome.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/30">
                       <TableCell>{formatDate(item.date)}</TableCell>
                       <TableCell className="font-medium">{item.description}</TableCell>
@@ -362,31 +239,40 @@ export default function Income() {
                         {formatCurrency(Number(item.amount))}
                       </TableCell>
                       <TableCell>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Inkomst verwijderen?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Weet je zeker dat je deze inkomst wilt verwijderen? Dit kan niet
-                                ongedaan worden gemaakt.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteIncome.mutate(item.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Verwijderen
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(item)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Inkomst verwijderen?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Weet je zeker dat je deze inkomst wilt verwijderen? Dit kan niet
+                                  ongedaan worden gemaakt.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteIncome.mutate(item.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Verwijderen
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -395,6 +281,20 @@ export default function Income() {
             )}
           </CardContent>
         </Card>
+
+        {/* Form Dialog */}
+        <IncomeFormDialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) setEditingIncome(null);
+          }}
+          onSubmit={handleSubmit}
+          isPending={createIncome.isPending || updateIncome.isPending}
+          members={members}
+          companies={companies}
+          editingIncome={editingIncome}
+        />
       </div>
     </MainLayout>
   );

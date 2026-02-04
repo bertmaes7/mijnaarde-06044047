@@ -1,19 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Printer, FileDown } from "lucide-react";
+import { Printer, FileDown, Save } from "lucide-react";
 import { useInventory, INVENTORY_TYPES } from "@/hooks/useInventory";
+import { useBudget, useSaveBudget, BUDGET_CATEGORIES } from "@/hooks/useBudget";
+import { toast } from "sonner";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -39,9 +34,11 @@ export default function Budget() {
 
   // Get the fiscal year for inventory (use start year)
   const fiscalYear = new Date(startDate).getFullYear();
-  const { data: inventory = [], isLoading } = useInventory(fiscalYear);
+  const { data: inventory = [], isLoading: inventoryLoading } = useInventory(fiscalYear);
+  const { data: budgetData = [], isLoading: budgetLoading } = useBudget(fiscalYear);
+  const saveBudget = useSaveBudget();
 
-  // Budget amounts for income and expenses (can be manually adjusted)
+  // Budget amounts for income and expenses
   const [budgetExpenses, setBudgetExpenses] = useState({
     goederen_diensten: 0,
     bezoldigingen: 0,
@@ -55,6 +52,40 @@ export default function Budget() {
     subsidies: 0,
     andere_ontvangsten: 0,
   });
+
+  // Load saved budget data when fiscalYear changes
+  useEffect(() => {
+    if (budgetData.length > 0) {
+      const newExpenses = { ...budgetExpenses };
+      const newIncome = { ...budgetIncome };
+
+      budgetData.forEach((item) => {
+        if (item.section === "expenses" && item.category in newExpenses) {
+          newExpenses[item.category as keyof typeof newExpenses] = Number(item.budgeted_amount);
+        }
+        if (item.section === "income" && item.category in newIncome) {
+          newIncome[item.category as keyof typeof newIncome] = Number(item.budgeted_amount);
+        }
+      });
+
+      setBudgetExpenses(newExpenses);
+      setBudgetIncome(newIncome);
+    } else {
+      // Reset to zero when no data
+      setBudgetExpenses({
+        goederen_diensten: 0,
+        bezoldigingen: 0,
+        diensten_diverse: 0,
+        andere_uitgaven: 0,
+      });
+      setBudgetIncome({
+        lidgeld: 0,
+        schenkingen: 0,
+        subsidies: 0,
+        andere_ontvangsten: 0,
+      });
+    }
+  }, [budgetData, fiscalYear]);
 
   const totalExpenses = useMemo(() => {
     return Object.values(budgetExpenses).reduce((sum, v) => sum + v, 0);
@@ -108,6 +139,25 @@ export default function Budget() {
     return `${start.toLocaleDateString("nl-BE")} - ${end.toLocaleDateString("nl-BE")}`;
   };
 
+  const handleSave = async () => {
+    const incomeItems = Object.entries(budgetIncome).map(([category, amount]) => ({
+      category,
+      amount,
+    }));
+    const expenseItems = Object.entries(budgetExpenses).map(([category, amount]) => ({
+      category,
+      amount,
+    }));
+
+    await saveBudget.mutateAsync({
+      fiscalYear,
+      incomeItems,
+      expenseItems,
+      approvalDate,
+      signatory,
+    });
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -143,11 +193,7 @@ export default function Budget() {
     pdf.save(`begroting-${fiscalYear}.pdf`);
   };
 
-  const getTypeLabel = (category: keyof typeof INVENTORY_TYPES, typeValue: string) => {
-    const types = INVENTORY_TYPES[category];
-    const found = types.find((t) => t.value === typeValue);
-    return found?.label || typeValue;
-  };
+  const isLoading = inventoryLoading || budgetLoading;
 
   if (isLoading) {
     return (
@@ -187,11 +233,15 @@ export default function Budget() {
                 className="w-[140px]"
               />
             </div>
+            <Button onClick={handleSave} variant="default" className="gap-2" disabled={saveBudget.isPending}>
+              <Save className="h-4 w-4" />
+              Opslaan
+            </Button>
             <Button onClick={handleExportPdf} variant="outline" className="gap-2">
               <FileDown className="h-4 w-4" />
               PDF
             </Button>
-            <Button onClick={handlePrint} className="gap-2">
+            <Button onClick={handlePrint} variant="outline" className="gap-2">
               <Printer className="h-4 w-4" />
               Afdrukken
             </Button>
@@ -247,74 +297,25 @@ export default function Budget() {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b">
-                        <td className="py-2">Goederen en diensten</td>
-                        <td className="text-right py-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={budgetExpenses.goederen_diensten || ""}
-                            onChange={(e) =>
-                              setBudgetExpenses({
-                                ...budgetExpenses,
-                                goederen_diensten: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 text-right h-8 print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2">Bezoldigingen</td>
-                        <td className="text-right py-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={budgetExpenses.bezoldigingen || ""}
-                            onChange={(e) =>
-                              setBudgetExpenses({
-                                ...budgetExpenses,
-                                bezoldigingen: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 text-right h-8 print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2">Diensten en diverse goederen</td>
-                        <td className="text-right py-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={budgetExpenses.diensten_diverse || ""}
-                            onChange={(e) =>
-                              setBudgetExpenses({
-                                ...budgetExpenses,
-                                diensten_diverse: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 text-right h-8 print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2">Andere uitgaven</td>
-                        <td className="text-right py-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={budgetExpenses.andere_uitgaven || ""}
-                            onChange={(e) =>
-                              setBudgetExpenses({
-                                ...budgetExpenses,
-                                andere_uitgaven: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 text-right h-8 print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
+                      {BUDGET_CATEGORIES.expenses.map((cat) => (
+                        <tr key={cat.value} className="border-b">
+                          <td className="py-2">{cat.label}</td>
+                          <td className="text-right py-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={budgetExpenses[cat.value as keyof typeof budgetExpenses] || ""}
+                              onChange={(e) =>
+                                setBudgetExpenses({
+                                  ...budgetExpenses,
+                                  [cat.value]: parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              className="w-24 text-right h-8 print:border-0 print:bg-transparent"
+                            />
+                          </td>
+                        </tr>
+                      ))}
                       <tr className="font-bold border-t-2 border-foreground print:border-black">
                         <td className="py-2">Totaal uitgaven</td>
                         <td className="text-right py-2">{formatCurrency(totalExpenses)}</td>
@@ -338,74 +339,25 @@ export default function Budget() {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr className="border-b">
-                        <td className="py-2">Lidgeld</td>
-                        <td className="text-right py-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={budgetIncome.lidgeld || ""}
-                            onChange={(e) =>
-                              setBudgetIncome({
-                                ...budgetIncome,
-                                lidgeld: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 text-right h-8 print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2">Schenkingen en Legaten</td>
-                        <td className="text-right py-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={budgetIncome.schenkingen || ""}
-                            onChange={(e) =>
-                              setBudgetIncome({
-                                ...budgetIncome,
-                                schenkingen: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 text-right h-8 print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2">Subsidies</td>
-                        <td className="text-right py-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={budgetIncome.subsidies || ""}
-                            onChange={(e) =>
-                              setBudgetIncome({
-                                ...budgetIncome,
-                                subsidies: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 text-right h-8 print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-2">Andere ontvangsten</td>
-                        <td className="text-right py-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={budgetIncome.andere_ontvangsten || ""}
-                            onChange={(e) =>
-                              setBudgetIncome({
-                                ...budgetIncome,
-                                andere_ontvangsten: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 text-right h-8 print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
+                      {BUDGET_CATEGORIES.income.map((cat) => (
+                        <tr key={cat.value} className="border-b">
+                          <td className="py-2">{cat.label}</td>
+                          <td className="text-right py-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={budgetIncome[cat.value as keyof typeof budgetIncome] || ""}
+                              onChange={(e) =>
+                                setBudgetIncome({
+                                  ...budgetIncome,
+                                  [cat.value]: parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              className="w-24 text-right h-8 print:border-0 print:bg-transparent"
+                            />
+                          </td>
+                        </tr>
+                      ))}
                       <tr className="font-bold border-t-2 border-foreground print:border-black">
                         <td className="py-2">Totaal ontvangsten</td>
                         <td className="text-right py-2">{formatCurrency(totalIncome)}</td>
@@ -552,7 +504,7 @@ export default function Budget() {
                         </tr>
                       ))}
                       <tr className="font-bold border-t-2 border-foreground print:border-black">
-                        <td className="py-2">Andere verplichtingen</td>
+                        <td className="py-2">Totaal verplichtingen</td>
                         <td className="text-right py-2">{formatCurrency(inventoryTotals.verplichtingen)}</td>
                       </tr>
                     </tbody>

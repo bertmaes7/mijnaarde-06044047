@@ -19,8 +19,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useIncome, useExpenses } from "@/hooks/useFinance";
-import { InventoryList } from "@/components/finance/InventoryList";
-import { ArrowLeft, Printer, FileText } from "lucide-react";
+import { useInventory, INVENTORY_TYPES } from "@/hooks/useInventory";
+import { ArrowLeft, Printer, FileText, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const formatCurrency = (amount: number) => {
@@ -72,36 +72,6 @@ export default function AnnualReport() {
   const [approvalDate, setApprovalDate] = useState("");
   const [signatory1, setSignatory1] = useState("");
   const [signatory2, setSignatory2] = useState("");
-  
-  // Balance sheet manual entries (these would ideally be stored in DB)
-  const [balanceSheet, setBalanceSheet] = useState({
-    // Bezittingen (Assets)
-    onroerendeGoederen: 0,
-    andereOnroerendeGoederen: 0,
-    machines: 0,
-    andereMachines: 0,
-    roerendeGoederen: 0,
-    andereRoerendeGoederen: 0,
-    stocks: 0,
-    schuldvorderingen: 0,
-    geldbeleggingen: 0,
-    liquiditeiten: 0,
-    andereActiva: 0,
-    // Rechten
-    beloofdeSub: 0,
-    beloofdeSchenkingen: 0,
-    andereRechten: 0,
-    // Schulden (Liabilities)
-    financieleSchulden: 0,
-    schuldenLeveranciers: 0,
-    schuldenLeden: 0,
-    fiscaleSchulden: 0,
-    andereSchulden: 0,
-    // Verplichtingen
-    hypotheken: 0,
-    gegevenWaarborgen: 0,
-    andereVerbintenissen: 0,
-  });
 
   const [notes, setNotes] = useState({
     waarderingsregels: "",
@@ -112,6 +82,7 @@ export default function AnnualReport() {
 
   const { data: income = [], isLoading: incomeLoading } = useIncome();
   const { data: expenses = [], isLoading: expensesLoading } = useExpenses();
+  const { data: inventory = [], isLoading: inventoryLoading } = useInventory(selectedYear);
 
   // Filter by selected fiscal year (assume fiscal year = calendar year)
   const fiscalYearStart = new Date(selectedYear, 0, 1);
@@ -177,36 +148,44 @@ export default function AnnualReport() {
     incomeTotals.subsidies +
     incomeTotals.andere_ontvangsten;
 
-  // Balance sheet totals
-  const totalBezittingen =
-    balanceSheet.onroerendeGoederen +
-    balanceSheet.andereOnroerendeGoederen +
-    balanceSheet.machines +
-    balanceSheet.andereMachines +
-    balanceSheet.roerendeGoederen +
-    balanceSheet.andereRoerendeGoederen +
-    balanceSheet.stocks +
-    balanceSheet.schuldvorderingen +
-    balanceSheet.geldbeleggingen +
-    balanceSheet.liquiditeiten +
-    balanceSheet.andereActiva;
+  // Calculate inventory totals from database
+  const inventoryTotals = useMemo(() => {
+    const totals = {
+      bezittingen: 0,
+      schulden: 0,
+      rechten: 0,
+      verplichtingen: 0,
+    };
 
-  const totalRechten =
-    balanceSheet.beloofdeSub +
-    balanceSheet.beloofdeSchenkingen +
-    balanceSheet.andereRechten;
+    inventory.forEach((item) => {
+      const category = item.category as keyof typeof totals;
+      if (totals[category] !== undefined) {
+        totals[category] += Number(item.amount);
+      }
+    });
 
-  const totalSchulden =
-    balanceSheet.financieleSchulden +
-    balanceSheet.schuldenLeveranciers +
-    balanceSheet.schuldenLeden +
-    balanceSheet.fiscaleSchulden +
-    balanceSheet.andereSchulden;
+    return totals;
+  }, [inventory]);
 
-  const totalVerplichtingen =
-    balanceSheet.hypotheken +
-    balanceSheet.gegevenWaarborgen +
-    balanceSheet.andereVerbintenissen;
+  // Group inventory by type for detailed display
+  const inventoryByType = useMemo(() => {
+    const grouped: Record<string, { label: string; amount: number }> = {};
+
+    inventory.forEach((item) => {
+      if (!grouped[item.type]) {
+        // Find the label from INVENTORY_TYPES
+        const category = item.category as keyof typeof INVENTORY_TYPES;
+        const typeInfo = INVENTORY_TYPES[category]?.find((t) => t.value === item.type);
+        grouped[item.type] = {
+          label: typeInfo?.label || item.type,
+          amount: 0,
+        };
+      }
+      grouped[item.type].amount += Number(item.amount);
+    });
+
+    return grouped;
+  }, [inventory]);
 
   const handlePrint = () => {
     window.print();
@@ -214,7 +193,7 @@ export default function AnnualReport() {
 
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
-  const isLoading = incomeLoading || expensesLoading;
+  const isLoading = incomeLoading || expensesLoading || inventoryLoading;
 
   if (isLoading) {
     return (
@@ -482,409 +461,164 @@ export default function AnnualReport() {
 
           {/* 4. Staat van het vermogen */}
           <Card className="card-elevated print:shadow-none print:border print:border-gray-300">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">4. Staat van het vermogen</CardTitle>
+              <Button asChild variant="outline" size="sm" className="gap-2 print:hidden">
+                <Link to="/finance/inventory">
+                  <ExternalLink className="h-4 w-4" />
+                  Inventaris beheren
+                </Link>
+              </Button>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-8">
-                {/* Bezittingen */}
-                <div>
-                  <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2">
-                    Bezittingen
-                  </h4>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-1">Omschrijving</th>
-                        <th className="text-right py-1">Bedrag</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">
-                          Onroerende goederen behorend tot de vereniging in volle eigendom
-                        </td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.onroerendeGoederen}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                onroerendeGoederen: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Andere onroerende goederen</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.andereOnroerendeGoederen}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                andereOnroerendeGoederen: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Machines (volle eigendom)</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.machines}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                machines: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Stocks</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.stocks}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                stocks: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Schuldvorderingen</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.schuldvorderingen}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                schuldvorderingen: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Geldbeleggingen</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.geldbeleggingen}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                geldbeleggingen: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Liquiditeiten</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.liquiditeiten}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                liquiditeiten: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Andere activa</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.andereActiva}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                andereActiva: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+              {inventory.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Geen inventarisitems gevonden voor {selectedYear}.{" "}
+                  <Link to="/finance/inventory" className="text-primary hover:underline">
+                    Voeg items toe
+                  </Link>
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-8">
+                  {/* Bezittingen & Rechten */}
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2">
+                        Bezittingen
+                      </h4>
+                      <table className="w-full text-sm">
+                        <tbody>
+                          {inventory
+                            .filter((item) => item.category === "bezittingen")
+                            .map((item) => {
+                              const typeInfo = INVENTORY_TYPES.bezittingen.find(
+                                (t) => t.value === item.type
+                              );
+                              return (
+                                <tr key={item.id} className="border-b">
+                                  <td className="py-1 text-xs">{typeInfo?.label || item.type}</td>
+                                  <td className="text-right py-1 font-mono">
+                                    € {formatCurrency(Number(item.amount))}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          <tr className="font-bold border-t-2 border-foreground print:border-black">
+                            <td className="py-1">Totaal Bezittingen</td>
+                            <td className="text-right py-1 font-mono">
+                              € {formatCurrency(inventoryTotals.bezittingen)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
 
-                  <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2 mt-4">
-                    Rechten
-                  </h4>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-1">Omschrijving</th>
-                        <th className="text-right py-1">Bedrag</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Beloofde subsidies</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.beloofdeSub}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                beloofdeSub: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Beloofde schenkingen</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.beloofdeSchenkingen}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                beloofdeSchenkingen: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Andere rechten</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.andereRechten}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                andereRechten: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                    <div>
+                      <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2">
+                        Rechten
+                      </h4>
+                      <table className="w-full text-sm">
+                        <tbody>
+                          {inventory
+                            .filter((item) => item.category === "rechten")
+                            .map((item) => {
+                              const typeInfo = INVENTORY_TYPES.rechten.find(
+                                (t) => t.value === item.type
+                              );
+                              return (
+                                <tr key={item.id} className="border-b">
+                                  <td className="py-1 text-xs">{typeInfo?.label || item.type}</td>
+                                  <td className="text-right py-1 font-mono">
+                                    € {formatCurrency(Number(item.amount))}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          <tr className="font-bold border-t-2 border-foreground print:border-black">
+                            <td className="py-1">Totaal Rechten</td>
+                            <td className="text-right py-1 font-mono">
+                              € {formatCurrency(inventoryTotals.rechten)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Schulden & Verplichtingen */}
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2">
+                        Schulden
+                      </h4>
+                      <table className="w-full text-sm">
+                        <tbody>
+                          {inventory
+                            .filter((item) => item.category === "schulden")
+                            .map((item) => {
+                              const typeInfo = INVENTORY_TYPES.schulden.find(
+                                (t) => t.value === item.type
+                              );
+                              return (
+                                <tr key={item.id} className="border-b">
+                                  <td className="py-1 text-xs">{typeInfo?.label || item.type}</td>
+                                  <td className="text-right py-1 font-mono">
+                                    € {formatCurrency(Number(item.amount))}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          <tr className="font-bold border-t-2 border-foreground print:border-black">
+                            <td className="py-1">Totaal Schulden</td>
+                            <td className="text-right py-1 font-mono">
+                              € {formatCurrency(inventoryTotals.schulden)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2">
+                        Verplichtingen
+                      </h4>
+                      <table className="w-full text-sm">
+                        <tbody>
+                          {inventory
+                            .filter((item) => item.category === "verplichtingen")
+                            .map((item) => {
+                              const typeInfo = INVENTORY_TYPES.verplichtingen.find(
+                                (t) => t.value === item.type
+                              );
+                              return (
+                                <tr key={item.id} className="border-b">
+                                  <td className="py-1 text-xs">{typeInfo?.label || item.type}</td>
+                                  <td className="text-right py-1 font-mono">
+                                    € {formatCurrency(Number(item.amount))}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          <tr className="font-bold border-t-2 border-foreground print:border-black">
+                            <td className="py-1">Totaal Verplichtingen</td>
+                            <td className="text-right py-1 font-mono">
+                              € {formatCurrency(inventoryTotals.verplichtingen)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
-
-                {/* Schulden */}
-                <div>
-                  <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2">
-                    Schulden
-                  </h4>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-1">Omschrijving</th>
-                        <th className="text-right py-1">Bedrag</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Financiële schulden</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.financieleSchulden}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                financieleSchulden: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Schulden ten aanzien van leveranciers</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.schuldenLeveranciers}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                schuldenLeveranciers: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Schulden ten aanzien van leden</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.schuldenLeden}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                schuldenLeden: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Fiscale, salariële en sociale schulden</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.fiscaleSchulden}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                fiscaleSchulden: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Andere schulden</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.andereSchulden}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                andereSchulden: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2 mt-4">
-                    Verplichtingen
-                  </h4>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-1">Omschrijving</th>
-                        <th className="text-right py-1">Bedrag</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Hypotheken en hypotheekbeloften</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.hypotheken}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                hypotheken: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Gegeven waarborgen</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.gegevenWaarborgen}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                gegevenWaarborgen: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                      <tr className="border-b">
-                        <td className="py-1 text-xs">Andere verbintenissen</td>
-                        <td className="text-right py-1">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={balanceSheet.andereVerbintenissen}
-                            onChange={(e) =>
-                              setBalanceSheet({
-                                ...balanceSheet,
-                                andereVerbintenissen: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-24 h-7 text-right text-xs print:border-0 print:bg-transparent"
-                          />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* 5. Inventarislijst vermogensbestanddelen */}
-          <InventoryList fiscalYear={selectedYear} />
-
-          {/* 6. Belangrijke rechten en verplichtingen */}
+          {/* 5. Belangrijke rechten en verplichtingen */}
           <Card className="card-elevated print:shadow-none print:border print:border-gray-300">
             <CardHeader>
               <CardTitle className="text-lg">
-                6. Belangrijke rechten en verplichtingen die niet in cijfers kunnen worden
+                5. Belangrijke rechten en verplichtingen die niet in cijfers kunnen worden
                 weergegeven
               </CardTitle>
             </CardHeader>
@@ -900,6 +634,7 @@ export default function AnnualReport() {
               />
             </CardContent>
           </Card>
+
 
           {/* Approval and Signatures */}
           <Card className="card-elevated print:shadow-none print:border print:border-gray-300">

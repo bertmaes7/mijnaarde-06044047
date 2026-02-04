@@ -187,6 +187,12 @@ export default function Finance() {
                   Uitgaven
                 </Link>
               </Button>
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/finance/inventory">
+                  <Wallet className="h-4 w-4" />
+                  Inventaris
+                </Link>
+              </Button>
               <Button asChild variant="secondary" className="gap-2">
                 <Link to="/finance/annual-report">
                   <Receipt className="h-4 w-4" />

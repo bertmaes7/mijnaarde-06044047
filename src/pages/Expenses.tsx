@@ -1,32 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -46,12 +22,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useExpenses, useCreateExpense, useDeleteExpense, uploadReceipt } from "@/hooks/useFinance";
+import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense, uploadReceipt } from "@/hooks/useFinance";
 import { useMembers } from "@/hooks/useMembers";
 import { useCompanies } from "@/hooks/useCompanies";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ReceiptLink } from "@/components/finance/ReceiptLink";
@@ -60,23 +33,19 @@ import {
   Plus,
   TrendingDown,
   Trash2,
+  Pencil,
   User,
   Building2,
-  Upload,
 } from "lucide-react";
-
-const expenseSchema = z.object({
-  description: z.string().min(1, "Omschrijving is verplicht"),
-  amount: z.string().min(1, "Bedrag is verplicht"),
-  date: z.string().min(1, "Datum is verplicht"),
-  type: z.enum(["invoice", "expense_claim", "other"]),
-  vat_rate: z.string().default("21"),
-  member_id: z.string().optional(),
-  company_id: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-type ExpenseFormData = z.infer<typeof expenseSchema>;
+import { Expense as ExpenseType } from "@/lib/supabase";
+import { ExpenseFormDialog, ExpenseFormData } from "@/components/finance/ExpenseFormDialog";
+import {
+  FinanceFilters,
+  FinanceFiltersState,
+  getDefaultFilters,
+  filterByPeriod,
+  exportToCsv,
+} from "@/components/finance/FinanceFilters";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("nl-BE", {
@@ -89,53 +58,35 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString("nl-BE");
 };
 
+const expenseTypeOptions = [
+  { value: "invoice", label: "Factuur" },
+  { value: "expense_claim", label: "Onkostendeclaratie" },
+  { value: "other", label: "Overig" },
+];
+
 export default function Expenses() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [editingExpense, setEditingExpense] = useState<ExpenseType | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const [filters, setFilters] = useState<FinanceFiltersState>(getDefaultFilters());
+
   const { data: expenses = [], isLoading } = useExpenses();
   const { data: members = [] } = useMembers("");
   const { data: companies = [] } = useCompanies();
   const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
   const deleteExpense = useDeleteExpense();
 
-  const form = useForm<ExpenseFormData>({
-    resolver: zodResolver(expenseSchema),
-    defaultValues: {
-      description: "",
-      amount: "",
-      date: new Date().toISOString().split("T")[0],
-      type: "invoice",
-      vat_rate: "21",
-      member_id: "",
-      company_id: "",
-      notes: "",
-    },
-  });
+  const filteredExpenses = useMemo(() => {
+    return filterByPeriod(expenses, filters);
+  }, [expenses, filters]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-      if (!allowedTypes.includes(file.type)) {
-        toast.error("Alleen JPG, PNG, WebP of PDF bestanden zijn toegestaan");
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("Bestand mag maximaal 10MB zijn");
-        return;
-      }
-      setReceiptFile(file);
-    }
-  };
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
-  const handleSubmit = async (data: ExpenseFormData) => {
+  const handleSubmit = async (data: ExpenseFormData, receiptFile: File | null) => {
     setIsUploading(true);
     try {
-      // First create the expense
-      const expenseData = {
+      const expenseData: any = {
         description: data.description,
         amount: parseFloat(data.amount),
         date: data.date,
@@ -144,28 +95,71 @@ export default function Expenses() {
         member_id: data.member_id && data.member_id !== "none" ? data.member_id : null,
         company_id: data.company_id && data.company_id !== "none" ? data.company_id : null,
         notes: data.notes || null,
-        receipt_url: null as string | null,
       };
 
-      // If there's a receipt, upload it
+      // Handle receipt upload
       if (receiptFile) {
-        const tempId = crypto.randomUUID();
+        const tempId = editingExpense?.id || crypto.randomUUID();
         const receiptUrl = await uploadReceipt(receiptFile, tempId);
         if (receiptUrl) {
           expenseData.receipt_url = receiptUrl;
         }
       }
 
-      await createExpense.mutateAsync(expenseData);
-      form.reset();
-      setReceiptFile(null);
+      if (editingExpense) {
+        await updateExpense.mutateAsync({ id: editingExpense.id, data: expenseData });
+      } else {
+        await createExpense.mutateAsync(expenseData);
+      }
       setIsDialogOpen(false);
+      setEditingExpense(null);
     } finally {
       setIsUploading(false);
     }
   };
 
-  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const handleEdit = (item: ExpenseType) => {
+    setEditingExpense(item);
+    setIsDialogOpen(true);
+  };
+
+  const handleAddNew = () => {
+    setEditingExpense(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleExport = () => {
+    const columns = [
+      { key: "date", header: "Datum", format: (val: string) => formatDate(val) },
+      { key: "description", header: "Omschrijving" },
+      {
+        key: "type",
+        header: "Type",
+        format: (val: string) =>
+          val === "invoice" ? "Factuur" : val === "expense_claim" ? "Onkostendeclaratie" : "Overig",
+      },
+      { key: "vat_rate", header: "BTW %", format: (val: number) => `${val}%` },
+      {
+        key: "member",
+        header: "Lid",
+        format: (_: any, row: ExpenseType) =>
+          row.member ? `${row.member.first_name} ${row.member.last_name}` : "",
+      },
+      {
+        key: "company",
+        header: "Bedrijf",
+        format: (_: any, row: ExpenseType) => row.company?.name || "",
+      },
+      {
+        key: "amount",
+        header: "Bedrag",
+        format: (val: number) => val.toFixed(2).replace(".", ","),
+      },
+      { key: "notes", header: "Notities" },
+    ];
+    exportToCsv(filteredExpenses, columns, "uitgaven");
+    toast.success("Export gedownload");
+  };
 
   return (
     <MainLayout>
@@ -183,236 +177,30 @@ export default function Expenses() {
                 Uitgaven
               </h1>
               <p className="mt-1 text-muted-foreground">
-                Totaal: {formatCurrency(totalExpenses)}
+                Gefilterd totaal: {formatCurrency(totalExpenses)}
               </p>
             </div>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Nieuwe uitgave
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="font-display flex items-center gap-2">
-                  <TrendingDown className="h-5 w-5 text-primary" />
-                  Nieuwe uitgave toevoegen
-                </DialogTitle>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Omschrijving *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Factuur kantoormateriaal" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Bedrag (€) *</FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" placeholder="50.00" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Datum *</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Type</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="invoice">Factuur</SelectItem>
-                              <SelectItem value="expense_claim">Onkostendeclaratie</SelectItem>
-                              <SelectItem value="other">Overig</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="vat_rate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>BTW-tarief</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="0">0%</SelectItem>
-                              <SelectItem value="6">6%</SelectItem>
-                              <SelectItem value="12">12%</SelectItem>
-                              <SelectItem value="21">21%</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="member_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Gekoppeld lid</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || "none"}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecteer lid" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">Geen lid</SelectItem>
-                              {members.map((member) => (
-                                <SelectItem key={member.id} value={member.id}>
-                                  {member.first_name} {member.last_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="company_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Gekoppeld bedrijf</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || "none"}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecteer bedrijf" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="none">Geen bedrijf</SelectItem>
-                              {companies.map((company) => (
-                                <SelectItem key={company.id} value={company.id}>
-                                  {company.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  {/* Receipt Upload */}
-                  <div className="space-y-2">
-                    <FormLabel>Bonnetje/Factuur (optioneel)</FormLabel>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      accept=".jpg,.jpeg,.png,.webp,.pdf"
-                      className="hidden"
-                    />
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="gap-2 flex-1"
-                      >
-                        <Upload className="h-4 w-4" />
-                        {receiptFile ? receiptFile.name : "Upload bestand"}
-                      </Button>
-                      {receiptFile && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setReceiptFile(null)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      JPG, PNG, WebP of PDF (max 10MB)
-                    </p>
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notities</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Optionele notities..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Annuleren
-                    </Button>
-                    <Button type="submit" disabled={createExpense.isPending || isUploading}>
-                      {createExpense.isPending || isUploading ? "Opslaan..." : "Opslaan"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={handleAddNew} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nieuwe uitgave
+          </Button>
         </div>
+
+        {/* Filters */}
+        <FinanceFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          onExport={handleExport}
+          typeOptions={expenseTypeOptions}
+        />
 
         {/* Expenses Table */}
         <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <TrendingDown className="h-5 w-5 text-primary" />
-              Alle uitgaven
+              Uitgaven ({filteredExpenses.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -420,9 +208,9 @@ export default function Expenses() {
               <div className="flex items-center justify-center py-12">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
               </div>
-            ) : expenses.length === 0 ? (
+            ) : filteredExpenses.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
-                Nog geen uitgaven geregistreerd
+                Geen uitgaven gevonden
               </p>
             ) : (
               <Table>
@@ -435,11 +223,11 @@ export default function Expenses() {
                     <TableHead>Gekoppeld aan</TableHead>
                     <TableHead>Bonnetje</TableHead>
                     <TableHead className="text-right">Bedrag</TableHead>
-                    <TableHead className="w-[80px]">Acties</TableHead>
+                    <TableHead className="w-[100px]">Acties</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {expenses.map((expense) => (
+                  {filteredExpenses.map((expense) => (
                     <TableRow key={expense.id} className="hover:bg-muted/30">
                       <TableCell>{formatDate(expense.date)}</TableCell>
                       <TableCell className="font-medium">{expense.description}</TableCell>
@@ -477,31 +265,40 @@ export default function Expenses() {
                         {formatCurrency(Number(expense.amount))}
                       </TableCell>
                       <TableCell>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Uitgave verwijderen?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Weet je zeker dat je deze uitgave wilt verwijderen? Dit kan niet
-                                ongedaan worden gemaakt.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteExpense.mutate(expense.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Verwijderen
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(expense)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Uitgave verwijderen?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Weet je zeker dat je deze uitgave wilt verwijderen? Dit kan niet
+                                  ongedaan worden gemaakt.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteExpense.mutate(expense.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Verwijderen
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -510,6 +307,20 @@ export default function Expenses() {
             )}
           </CardContent>
         </Card>
+
+        {/* Form Dialog */}
+        <ExpenseFormDialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) setEditingExpense(null);
+          }}
+          onSubmit={handleSubmit}
+          isPending={createExpense.isPending || updateExpense.isPending || isUploading}
+          members={members}
+          companies={companies}
+          editingExpense={editingExpense}
+        />
       </div>
     </MainLayout>
   );

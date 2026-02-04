@@ -12,8 +12,6 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -173,34 +171,6 @@ export default function Finance() {
         <PageHeader
           title="Financieel Dashboard"
           description="Overzicht van inkomsten, uitgaven en saldo"
-          actions={
-            <>
-              <Button asChild variant="outline" className="gap-2">
-                <Link to="/finance/income">
-                  <TrendingUp className="h-4 w-4" />
-                  Inkomsten
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="gap-2">
-                <Link to="/finance/expenses">
-                  <TrendingDown className="h-4 w-4" />
-                  Uitgaven
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="gap-2">
-                <Link to="/finance/inventory">
-                  <Wallet className="h-4 w-4" />
-                  Inventaris
-                </Link>
-              </Button>
-              <Button asChild variant="secondary" className="gap-2">
-                <Link to="/finance/annual-report">
-                  <Receipt className="h-4 w-4" />
-                  Jaarrekening
-                </Link>
-              </Button>
-            </>
-          }
         />
 
         {/* Date Filter */}

@@ -20,8 +20,10 @@ import {
 } from "@/components/ui/accordion";
 import { useIncome, useExpenses } from "@/hooks/useFinance";
 import { useInventory, INVENTORY_TYPES } from "@/hooks/useInventory";
-import { ArrowLeft, Printer, FileText, ExternalLink } from "lucide-react";
+import { ArrowLeft, Printer, FileText, ExternalLink, FileDown } from "lucide-react";
 import { Link } from "react-router-dom";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const formatCurrency = (amount: number) => {
   return amount.toFixed(2).replace(".", ",");
@@ -191,6 +193,37 @@ export default function AnnualReport() {
     window.print();
   };
 
+  const handleExportPdf = async () => {
+    const element = document.getElementById("annual-report-content");
+    if (!element) return;
+
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+    const imgWidth = 210;
+    const pageHeight = 297;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(`jaarrekening-${selectedYear}.pdf`);
+  };
+
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
   const isLoading = incomeLoading || expensesLoading || inventoryLoading;
@@ -241,6 +274,10 @@ export default function AnnualReport() {
                 ))}
               </SelectContent>
             </Select>
+            <Button onClick={handleExportPdf} variant="outline" className="gap-2">
+              <FileDown className="h-4 w-4" />
+              PDF
+            </Button>
             <Button onClick={handlePrint} className="gap-2">
               <Printer className="h-4 w-4" />
               Afdrukken
@@ -250,6 +287,7 @@ export default function AnnualReport() {
 
         {/* Printable Report */}
         <div
+          id="annual-report-content"
           ref={printRef}
           className="bg-background print:bg-white print:text-black space-y-8"
         >
@@ -471,146 +509,153 @@ export default function AnnualReport() {
               </Button>
             </CardHeader>
             <CardContent>
-              {inventory.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  Geen inventarisitems gevonden voor {selectedYear}.{" "}
-                  <Link to="/finance/inventory" className="text-primary hover:underline">
-                    Voeg items toe
-                  </Link>
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 gap-8">
-                  {/* Bezittingen & Rechten */}
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2">
-                        Bezittingen
-                      </h4>
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {inventory
-                            .filter((item) => item.category === "bezittingen")
-                            .map((item) => {
-                              const typeInfo = INVENTORY_TYPES.bezittingen.find(
-                                (t) => t.value === item.type
-                              );
-                              return (
-                                <tr key={item.id} className="border-b">
-                                  <td className="py-1 text-xs">{typeInfo?.label || item.type}</td>
-                                  <td className="text-right py-1 font-mono">
-                                    € {formatCurrency(Number(item.amount))}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          <tr className="font-bold border-t-2 border-foreground print:border-black">
-                            <td className="py-1">Totaal Bezittingen</td>
-                            <td className="text-right py-1 font-mono">
-                              € {formatCurrency(inventoryTotals.bezittingen)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2">
-                        Rechten
-                      </h4>
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {inventory
-                            .filter((item) => item.category === "rechten")
-                            .map((item) => {
-                              const typeInfo = INVENTORY_TYPES.rechten.find(
-                                (t) => t.value === item.type
-                              );
-                              return (
-                                <tr key={item.id} className="border-b">
-                                  <td className="py-1 text-xs">{typeInfo?.label || item.type}</td>
-                                  <td className="text-right py-1 font-mono">
-                                    € {formatCurrency(Number(item.amount))}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          <tr className="font-bold border-t-2 border-foreground print:border-black">
-                            <td className="py-1">Totaal Rechten</td>
-                            <td className="text-right py-1 font-mono">
-                              € {formatCurrency(inventoryTotals.rechten)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
+              <div className="grid grid-cols-2 gap-8">
+                {/* Bezittingen & Rechten */}
+                <div className="space-y-4">
+                  <div>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b-2 border-foreground print:border-black">
+                          <th className="text-left py-2 font-semibold" colSpan={2}>
+                            Bezittingen
+                          </th>
+                        </tr>
+                        <tr className="border-b">
+                          <th className="text-left py-1">Omschrijving</th>
+                          <th className="text-right py-1">Bedrag</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {INVENTORY_TYPES.bezittingen.map((type) => {
+                          const amount = inventoryByType[type.value]?.amount || 0;
+                          return (
+                            <tr key={type.value} className="border-b">
+                              <td className="py-1 text-xs">{type.label}</td>
+                              <td className="text-right py-1 font-mono">
+                                {amount > 0 ? formatCurrency(amount) : ""}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="font-bold border-t-2 border-foreground print:border-black">
+                          <td className="py-1">Totaal Bezittingen</td>
+                          <td className="text-right py-1 font-mono">
+                            {formatCurrency(inventoryTotals.bezittingen)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
 
-                  {/* Schulden & Verplichtingen */}
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2">
-                        Schulden
-                      </h4>
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {inventory
-                            .filter((item) => item.category === "schulden")
-                            .map((item) => {
-                              const typeInfo = INVENTORY_TYPES.schulden.find(
-                                (t) => t.value === item.type
-                              );
-                              return (
-                                <tr key={item.id} className="border-b">
-                                  <td className="py-1 text-xs">{typeInfo?.label || item.type}</td>
-                                  <td className="text-right py-1 font-mono">
-                                    € {formatCurrency(Number(item.amount))}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          <tr className="font-bold border-t-2 border-foreground print:border-black">
-                            <td className="py-1">Totaal Schulden</td>
-                            <td className="text-right py-1 font-mono">
-                              € {formatCurrency(inventoryTotals.schulden)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold border-b-2 border-foreground print:border-black pb-1 mb-2">
-                        Verplichtingen
-                      </h4>
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {inventory
-                            .filter((item) => item.category === "verplichtingen")
-                            .map((item) => {
-                              const typeInfo = INVENTORY_TYPES.verplichtingen.find(
-                                (t) => t.value === item.type
-                              );
-                              return (
-                                <tr key={item.id} className="border-b">
-                                  <td className="py-1 text-xs">{typeInfo?.label || item.type}</td>
-                                  <td className="text-right py-1 font-mono">
-                                    € {formatCurrency(Number(item.amount))}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          <tr className="font-bold border-t-2 border-foreground print:border-black">
-                            <td className="py-1">Totaal Verplichtingen</td>
-                            <td className="text-right py-1 font-mono">
-                              € {formatCurrency(inventoryTotals.verplichtingen)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
+                  <div>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b-2 border-foreground print:border-black">
+                          <th className="text-left py-2 font-semibold" colSpan={2}>
+                            Rechten
+                          </th>
+                        </tr>
+                        <tr className="border-b">
+                          <th className="text-left py-1">Omschrijving</th>
+                          <th className="text-right py-1">Bedrag</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {INVENTORY_TYPES.rechten.map((type) => {
+                          const amount = inventoryByType[type.value]?.amount || 0;
+                          return (
+                            <tr key={type.value} className="border-b">
+                              <td className="py-1 text-xs">{type.label}</td>
+                              <td className="text-right py-1 font-mono">
+                                {amount > 0 ? formatCurrency(amount) : ""}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="font-bold border-t-2 border-foreground print:border-black">
+                          <td className="py-1">Totaal Rechten</td>
+                          <td className="text-right py-1 font-mono">
+                            {formatCurrency(inventoryTotals.rechten)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              )}
+
+                {/* Schulden & Verplichtingen */}
+                <div className="space-y-4">
+                  <div>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b-2 border-foreground print:border-black">
+                          <th className="text-left py-2 font-semibold" colSpan={2}>
+                            Schulden
+                          </th>
+                        </tr>
+                        <tr className="border-b">
+                          <th className="text-left py-1">Omschrijving</th>
+                          <th className="text-right py-1">Bedrag</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {INVENTORY_TYPES.schulden.map((type) => {
+                          const amount = inventoryByType[type.value]?.amount || 0;
+                          return (
+                            <tr key={type.value} className="border-b">
+                              <td className="py-1 text-xs">{type.label}</td>
+                              <td className="text-right py-1 font-mono">
+                                {amount > 0 ? formatCurrency(amount) : ""}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="font-bold border-t-2 border-foreground print:border-black">
+                          <td className="py-1">Totaal Schulden</td>
+                          <td className="text-right py-1 font-mono">
+                            {formatCurrency(inventoryTotals.schulden)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b-2 border-foreground print:border-black">
+                          <th className="text-left py-2 font-semibold" colSpan={2}>
+                            Verplichtingen
+                          </th>
+                        </tr>
+                        <tr className="border-b">
+                          <th className="text-left py-1">Omschrijving</th>
+                          <th className="text-right py-1">Bedrag</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {INVENTORY_TYPES.verplichtingen.map((type) => {
+                          const amount = inventoryByType[type.value]?.amount || 0;
+                          return (
+                            <tr key={type.value} className="border-b">
+                              <td className="py-1 text-xs">{type.label}</td>
+                              <td className="text-right py-1 font-mono">
+                                {amount > 0 ? formatCurrency(amount) : ""}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="font-bold border-t-2 border-foreground print:border-black">
+                          <td className="py-1">Totaal Verplichtingen</td>
+                          <td className="text-right py-1 font-mono">
+                            {formatCurrency(inventoryTotals.verplichtingen)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

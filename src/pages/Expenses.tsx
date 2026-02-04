@@ -64,6 +64,19 @@ const expenseTypeOptions = [
   { value: "other", label: "Overig" },
 ];
 
+const expenseCategoryLabels: Record<string, string> = {
+  bankkosten: "Bankkosten",
+  kantoormateriaal: "Kantoormateriaal",
+  verzekeringen: "Verzekeringen",
+  huur: "Huur",
+  nutsvoorzieningen: "Nutsvoorzieningen",
+  reiskosten: "Reiskosten",
+  representatiekosten: "Representatiekosten",
+  abonnementen: "Abonnementen",
+  professionele_diensten: "Professionele diensten",
+  overig: "Overig",
+};
+
 export default function Expenses() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseType | null>(null);
@@ -91,6 +104,7 @@ export default function Expenses() {
         amount: parseFloat(data.amount),
         date: data.date,
         type: data.type,
+        category: data.category,
         vat_rate: parseFloat(data.vat_rate),
         member_id: data.member_id && data.member_id !== "none" ? data.member_id : null,
         company_id: data.company_id && data.company_id !== "none" ? data.company_id : null,
@@ -137,6 +151,11 @@ export default function Expenses() {
         header: "Type",
         format: (val: string) =>
           val === "invoice" ? "Factuur" : val === "expense_claim" ? "Onkostendeclaratie" : "Overig",
+      },
+      {
+        key: "category",
+        header: "Categorie",
+        format: (val: string) => expenseCategoryLabels[val] || val || "Overig",
       },
       { key: "vat_rate", header: "BTW %", format: (val: number) => `${val}%` },
       {
@@ -219,6 +238,7 @@ export default function Expenses() {
                     <TableHead>Datum</TableHead>
                     <TableHead>Omschrijving</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Categorie</TableHead>
                     <TableHead>BTW</TableHead>
                     <TableHead>Gekoppeld aan</TableHead>
                     <TableHead>Bonnetje</TableHead>
@@ -238,6 +258,11 @@ export default function Expenses() {
                             : expense.type === "expense_claim"
                             ? "Onkosten"
                             : "Overig"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {expenseCategoryLabels[(expense as any).category] || "Overig"}
                         </Badge>
                       </TableCell>
                       <TableCell>

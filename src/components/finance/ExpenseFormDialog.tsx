@@ -31,11 +31,25 @@ import { Expense } from "@/lib/supabase";
 import { toast } from "sonner";
 import { SearchableSelect } from "./SearchableSelect";
 
+const EXPENSE_CATEGORIES = [
+  { value: "bankkosten", label: "Bankkosten" },
+  { value: "kantoormateriaal", label: "Kantoormateriaal" },
+  { value: "verzekeringen", label: "Verzekeringen" },
+  { value: "huur", label: "Huur" },
+  { value: "nutsvoorzieningen", label: "Nutsvoorzieningen" },
+  { value: "reiskosten", label: "Reiskosten" },
+  { value: "representatiekosten", label: "Representatiekosten" },
+  { value: "abonnementen", label: "Abonnementen" },
+  { value: "professionele_diensten", label: "Professionele diensten" },
+  { value: "overig", label: "Overig" },
+] as const;
+
 const expenseSchema = z.object({
   description: z.string().min(1, "Omschrijving is verplicht"),
   amount: z.string().min(1, "Bedrag is verplicht"),
   date: z.string().min(1, "Datum is verplicht"),
   type: z.enum(["invoice", "expense_claim", "other"]),
+  category: z.string().default("overig"),
   vat_rate: z.string().default("21"),
   member_id: z.string().optional(),
   company_id: z.string().optional(),
@@ -73,6 +87,7 @@ export function ExpenseFormDialog({
       amount: "",
       date: new Date().toISOString().split("T")[0],
       type: "invoice",
+      category: "overig",
       vat_rate: "21",
       member_id: "",
       company_id: "",
@@ -105,6 +120,7 @@ export function ExpenseFormDialog({
         amount: String(editingExpense.amount),
         date: editingExpense.date,
         type: editingExpense.type as "invoice" | "expense_claim" | "other",
+        category: (editingExpense as any).category || "overig",
         vat_rate: String(editingExpense.vat_rate),
         member_id: editingExpense.member_id || "",
         company_id: editingExpense.company_id || "",
@@ -116,6 +132,7 @@ export function ExpenseFormDialog({
         amount: "",
         date: new Date().toISOString().split("T")[0],
         type: "invoice",
+        category: "overig",
         vat_rate: "21",
         member_id: "",
         company_id: "",
@@ -222,6 +239,32 @@ export function ExpenseFormDialog({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Categorie</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {EXPENSE_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="vat_rate"

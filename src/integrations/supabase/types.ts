@@ -50,6 +50,45 @@ export type Database = {
         }
         Relationships: []
       }
+      budget: {
+        Row: {
+          budgeted_amount: number
+          category: string
+          created_at: string
+          description: string
+          fiscal_year: number
+          id: string
+          notes: string | null
+          realized_amount: number
+          section: string
+          updated_at: string
+        }
+        Insert: {
+          budgeted_amount?: number
+          category: string
+          created_at?: string
+          description: string
+          fiscal_year: number
+          id?: string
+          notes?: string | null
+          realized_amount?: number
+          section: string
+          updated_at?: string
+        }
+        Update: {
+          budgeted_amount?: number
+          category?: string
+          created_at?: string
+          description?: string
+          fiscal_year?: number
+          id?: string
+          notes?: string | null
+          realized_amount?: number
+          section?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           address: string | null

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { TrendingUp } from "lucide-react";
 import { Income } from "@/lib/supabase";
+import { SearchableSelect } from "./SearchableSelect";
 
 const incomeSchema = z.object({
   description: z.string().min(1, "Omschrijving is verplicht"),
@@ -72,6 +73,24 @@ export function IncomeFormDialog({
       notes: "",
     },
   });
+
+  const memberOptions = useMemo(
+    () =>
+      members.map((member) => ({
+        value: member.id,
+        label: `${member.first_name} ${member.last_name}`,
+      })),
+    [members]
+  );
+
+  const companyOptions = useMemo(
+    () =>
+      companies.map((company) => ({
+        value: company.id,
+        label: company.name,
+      })),
+    [companies]
+  );
 
   useEffect(() => {
     if (editingIncome) {
@@ -183,21 +202,17 @@ export function IncomeFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gekoppeld lid</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || "none"}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecteer lid" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Geen lid</SelectItem>
-                        {members.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.first_name} {member.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={memberOptions}
+                        value={field.value || "none"}
+                        onValueChange={field.onChange}
+                        placeholder="Selecteer lid"
+                        searchPlaceholder="Zoek lid..."
+                        emptyText="Geen leden gevonden."
+                        noneLabel="Geen lid"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -208,21 +223,17 @@ export function IncomeFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gekoppeld bedrijf</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || "none"}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecteer bedrijf" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Geen bedrijf</SelectItem>
-                        {companies.map((company) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={companyOptions}
+                        value={field.value || "none"}
+                        onValueChange={field.onChange}
+                        placeholder="Selecteer bedrijf"
+                        searchPlaceholder="Zoek bedrijf..."
+                        emptyText="Geen bedrijven gevonden."
+                        noneLabel="Geen bedrijf"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

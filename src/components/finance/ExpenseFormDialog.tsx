@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +29,7 @@ import { z } from "zod";
 import { TrendingDown, Upload, Trash2 } from "lucide-react";
 import { Expense } from "@/lib/supabase";
 import { toast } from "sonner";
+import { SearchableSelect } from "./SearchableSelect";
 
 const expenseSchema = z.object({
   description: z.string().min(1, "Omschrijving is verplicht"),
@@ -78,6 +79,24 @@ export function ExpenseFormDialog({
       notes: "",
     },
   });
+
+  const memberOptions = useMemo(
+    () =>
+      members.map((member) => ({
+        value: member.id,
+        label: `${member.first_name} ${member.last_name}`,
+      })),
+    [members]
+  );
+
+  const companyOptions = useMemo(
+    () =>
+      companies.map((company) => ({
+        value: company.id,
+        label: company.name,
+      })),
+    [companies]
+  );
 
   useEffect(() => {
     if (editingExpense) {
@@ -234,21 +253,17 @@ export function ExpenseFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gekoppeld lid</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || "none"}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecteer lid" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Geen lid</SelectItem>
-                        {members.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.first_name} {member.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={memberOptions}
+                        value={field.value || "none"}
+                        onValueChange={field.onChange}
+                        placeholder="Selecteer lid"
+                        searchPlaceholder="Zoek lid..."
+                        emptyText="Geen leden gevonden."
+                        noneLabel="Geen lid"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -259,21 +274,17 @@ export function ExpenseFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gekoppeld bedrijf</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || "none"}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecteer bedrijf" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Geen bedrijf</SelectItem>
-                        {companies.map((company) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={companyOptions}
+                        value={field.value || "none"}
+                        onValueChange={field.onChange}
+                        placeholder="Selecteer bedrijf"
+                        searchPlaceholder="Zoek bedrijf..."
+                        emptyText="Geen bedrijven gevonden."
+                        noneLabel="Geen bedrijf"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

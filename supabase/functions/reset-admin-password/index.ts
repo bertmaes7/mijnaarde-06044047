@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,36 +26,21 @@ async function sendPasswordEmail(
   firstName: string,
   tempPassword: string
 ): Promise<void> {
-  const smtpHost = Deno.env.get("SMTP_HOST");
-  const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
-  const smtpUser = Deno.env.get("SMTP_USER");
-  const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-  const smtpFromEmail = Deno.env.get("SMTP_FROM_EMAIL");
-  const smtpFromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+  const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "bert@mijnaarde.com";
+  const fromName = Deno.env.get("RESEND_FROM_NAME") || "Mijn Aarde vzw";
 
-  if (!smtpHost || !smtpUser || !smtpPassword || !smtpFromEmail) {
-    console.error("SMTP configuration incomplete, skipping email");
+  if (!resendApiKey) {
+    console.error("RESEND_API_KEY not configured, skipping email");
     return;
   }
 
-  const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
-  
-  const client = new SMTPClient({
-    connection: {
-      hostname: smtpHost,
-      port: smtpPort,
-      tls: false, // Start without TLS, upgrade via STARTTLS
-      auth: {
-        username: smtpUser,
-        password: smtpPassword,
-      },
-    },
-  });
+  const resend = new Resend(resendApiKey);
 
   try {
-    await client.send({
-      from: `${smtpFromName} <${smtpFromEmail}>`,
-      to: email,
+    const { error } = await resend.emails.send({
+      from: `${fromName} <${fromEmail}>`,
+      to: [email],
       subject: "Uw wachtwoord is gereset - Mijn Aarde vzw",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -71,11 +57,14 @@ async function sendPasswordEmail(
         </div>
       `,
     });
-    console.log("Password reset email sent successfully to:", email);
+
+    if (error) {
+      console.error("Failed to send email:", error);
+    } else {
+      console.log("Password reset email sent successfully to:", email);
+    }
   } catch (error) {
     console.error("Failed to send email:", error);
-  } finally {
-    await client.close();
   }
 }
 

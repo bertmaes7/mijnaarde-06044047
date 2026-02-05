@@ -874,11 +874,9 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
-          email: string | null
           id: string | null
           is_supplier: boolean | null
           name: string | null
-          phone: string | null
           postal_code: string | null
           updated_at: string | null
           website: string | null
@@ -888,11 +886,9 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
-          email?: string | null
           id?: string | null
           is_supplier?: boolean | null
           name?: string | null
-          phone?: string | null
           postal_code?: string | null
           updated_at?: string | null
           website?: string | null
@@ -902,11 +898,9 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
-          email?: string | null
           id?: string | null
           is_supplier?: boolean | null
           name?: string | null
-          phone?: string | null
           postal_code?: string | null
           updated_at?: string | null
           website?: string | null

@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Heart, Mail, User, ArrowLeft } from "lucide-react";
+import { Loader2, Heart, Mail, User, ArrowLeft, UserPlus, CheckCircle } from "lucide-react";
 import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Ongeldig e-mailadres");
 
-type Step = "email" | "register" | "payment";
+type Step = "email" | "register" | "payment" | "friend-success";
 
 interface DonorInfo {
   email: string;
@@ -28,6 +28,7 @@ export default function Donate() {
   const [amount, setAmount] = useState<string>("");
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSavingFriend, setIsSavingFriend] = useState(false);
   const [donorInfo, setDonorInfo] = useState<DonorInfo | null>(null);
 
   const presetAmounts = [7, 49, 77, 777];
@@ -88,6 +89,50 @@ export default function Donate() {
       isExistingMember: false,
     });
     setStep("payment");
+  };
+
+  const handleSaveAsFriend = async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error("Vul je voor- en achternaam in");
+      return;
+    }
+
+    setIsSavingFriend(true);
+
+    try {
+      // Check if member already exists
+      const { data: existingMember } = await supabase.functions.invoke("check-member-email", {
+        body: { email: email.toLowerCase().trim() },
+      });
+
+      if (existingMember?.exists) {
+        // Member already exists, just show success
+        toast.success("Je bent al geregistreerd als vriend!");
+        setStep("friend-success");
+      } else {
+        // Create new member without donation
+        const { error } = await supabase
+          .from("members")
+          .insert({
+            email: email.toLowerCase().trim(),
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            is_active: true,
+            is_donor: false,
+            member_since: new Date().toISOString().split('T')[0],
+          });
+
+        if (error) throw error;
+        
+        toast.success("Je bent toegevoegd als vriend!");
+        setStep("friend-success");
+      }
+    } catch (error) {
+      console.error("Error saving friend:", error);
+      toast.error("Er ging iets mis bij het opslaan");
+    } finally {
+      setIsSavingFriend(false);
+    }
   };
 
   const handleDonate = async () => {
@@ -245,7 +290,64 @@ export default function Donate() {
                 <Button type="submit" className="w-full">
                   Doorgaan naar betaling
                 </Button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">of</span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full text-muted-foreground"
+                  onClick={handleSaveAsFriend}
+                  disabled={isSavingFriend || !firstName.trim() || !lastName.trim()}
+                >
+                  {isSavingFriend ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <UserPlus className="mr-2 h-4 w-4" />
+                  )}
+                  Bewaar mij als vriend zonder donatie
+                </Button>
               </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Friend Success */}
+        {step === "friend-success" && (
+          <Card className="card-elevated">
+            <CardContent className="pt-6">
+              <div className="text-center space-y-4">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <CheckCircle className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold">Bedankt!</h3>
+                  <p className="text-muted-foreground mt-2">
+                    Je bent nu geregistreerd als vriend van Mijn Aarde.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    We houden je op de hoogte van onze activiteiten.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setStep("email");
+                    setEmail("");
+                    setFirstName("");
+                    setLastName("");
+                  }}
+                >
+                  Terug naar begin
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { Resend } from "https://esm.sh/resend@4.0.0";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 // Rate limiting configuration
 const RATE_LIMIT = {
@@ -173,9 +173,17 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     
-    console.log("Env vars present - URL:", !!supabaseUrl, "Anon:", !!supabaseAnonKey, "Service:", !!supabaseServiceKey, "Resend:", !!resendApiKey);
+    // SMTP configuration
+    const smtpHost = Deno.env.get("SMTP_HOST");
+    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
+    const smtpUser = Deno.env.get("SMTP_USER");
+    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
+    const smtpFromEmail = Deno.env.get("SMTP_FROM_EMAIL");
+    const smtpFromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
+    
+    console.log("Env vars present - URL:", !!supabaseUrl, "Anon:", !!supabaseAnonKey, "Service:", !!supabaseServiceKey);
+    console.log("SMTP vars present - Host:", !!smtpHost, "User:", !!smtpUser, "Password:", !!smtpPassword, "From:", !!smtpFromEmail);
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
       console.error("Missing Supabase environment variables");
@@ -185,10 +193,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    if (!resendApiKey) {
-      console.error("Missing RESEND_API_KEY");
+    if (!smtpHost || !smtpUser || !smtpPassword || !smtpFromEmail) {
+      console.error("Missing SMTP configuration");
       return new Response(
-        JSON.stringify({ error: "RESEND_API_KEY is niet geconfigureerd. Voeg deze toe in de Cloud secrets." }),
+        JSON.stringify({ error: "SMTP configuratie ontbreekt. Voeg SMTP_HOST, SMTP_USER, SMTP_PASSWORD en SMTP_FROM_EMAIL toe aan de secrets." }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -244,10 +252,6 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-
-    // Get from email from secrets (fallback to default)
-    const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "info@mijnaarde.com";
-    const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde";
 
     const { mailingId } = await req.json();
 
@@ -334,54 +338,64 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Sending to ${membersList.length} recipients via Resend`);
+    console.log(`Sending to ${membersList.length} recipients via SMTP (${smtpFromEmail})`);
 
     const requestOrigin = req.headers.get("origin") || "https://mijnaarde.lovable.app";
     console.log(`Using origin for unsubscribe links: ${requestOrigin}`);
 
-    // Initialize Resend client
-    const resend = new Resend(resendApiKey);
+    // Initialize SMTP client
+    const smtpClient = new SMTPClient({
+      connection: {
+        hostname: smtpHost,
+        port: smtpPort,
+        tls: true,
+        auth: {
+          username: smtpUser,
+          password: smtpPassword,
+        },
+      },
+    });
 
     let successCount = 0;
     let failCount = 0;
     const errors: string[] = [];
 
-    for (const member of membersList) {
-      if (!member.email) continue;
+    try {
+      for (const member of membersList) {
+        if (!member.email) continue;
 
-      try {
-        const personalizedSubject = replacePlaceholders(templateData.subject, member, assetsData);
-        let personalizedHtml = replacePlaceholders(templateData.html_content, member, assetsData);
-        let personalizedText = templateData.text_content 
-          ? replacePlaceholders(templateData.text_content, member, assetsData)
-          : undefined;
+        try {
+          const personalizedSubject = replacePlaceholders(templateData.subject, member, assetsData);
+          let personalizedHtml = replacePlaceholders(templateData.html_content, member, assetsData);
+          let personalizedText = templateData.text_content 
+            ? replacePlaceholders(templateData.text_content, member, assetsData)
+            : undefined;
 
-        const unsubscribeUrl = generateUnsubscribeUrl(member.id, requestOrigin);
-        personalizedHtml = addUnsubscribeFooter(personalizedHtml, unsubscribeUrl);
-        if (personalizedText) {
-          personalizedText = addUnsubscribeFooterText(personalizedText, unsubscribeUrl);
+          const unsubscribeUrl = generateUnsubscribeUrl(member.id, requestOrigin);
+          personalizedHtml = addUnsubscribeFooter(personalizedHtml, unsubscribeUrl);
+          if (personalizedText) {
+            personalizedText = addUnsubscribeFooterText(personalizedText, unsubscribeUrl);
+          }
+
+          await smtpClient.send({
+            from: `${smtpFromName} <${smtpFromEmail}>`,
+            to: member.email,
+            subject: personalizedSubject,
+            html: personalizedHtml,
+            content: personalizedText,
+          });
+
+          successCount++;
+          console.log(`Email sent to ${member.email}`);
+        } catch (emailError: unknown) {
+          failCount++;
+          const errorMessage = emailError instanceof Error ? emailError.message : String(emailError);
+          errors.push(`${member.email}: ${errorMessage}`);
+          console.error(`Failed to send to ${member.email}:`, emailError);
         }
-
-        const { error: sendError } = await resend.emails.send({
-          from: `${fromName} <${fromEmail}>`,
-          to: [member.email],
-          subject: personalizedSubject,
-          html: personalizedHtml,
-          text: personalizedText,
-        });
-
-        if (sendError) {
-          throw new Error(sendError.message);
-        }
-
-        successCount++;
-        console.log(`Email sent to ${member.email}`);
-      } catch (emailError: unknown) {
-        failCount++;
-        const errorMessage = emailError instanceof Error ? emailError.message : String(emailError);
-        errors.push(`${member.email}: ${errorMessage}`);
-        console.error(`Failed to send to ${member.email}:`, emailError);
       }
+    } finally {
+      await smtpClient.close();
     }
 
     const newStatus = failCount === membersList.length ? "failed" : "sent";

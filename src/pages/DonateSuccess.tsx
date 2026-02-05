@@ -1,15 +1,13 @@
- import { useEffect, useState } from "react";
- import { useSearchParams, Link } from "react-router-dom";
- import { supabase } from "@/integrations/supabase/client";
- import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
- import { Button } from "@/components/ui/button";
- import { Leaf, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react";
- import { useOrganizationLogo } from "@/hooks/useOrganizationLogo";
- 
- export default function DonateSuccess() {
-   const [searchParams] = useSearchParams();
-   const donationId = searchParams.get("donation_id");
-   const logoUrl = useOrganizationLogo();
+import { useEffect, useState } from "react";
+import { useSearchParams, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { CheckCircle, XCircle, Clock, Loader2 } from "lucide-react";
+import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
+export default function DonateSuccess() {
+  const [searchParams] = useSearchParams();
+  const donationId = searchParams.get("donation_id");
    
    const [status, setStatus] = useState<"loading" | "paid" | "pending" | "failed">("loading");
    const [amount, setAmount] = useState<number | null>(null);
@@ -62,21 +60,13 @@
    return (
      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
        <div className="w-full max-w-md space-y-6">
-         {/* Logo */}
-         <div className="text-center">
-           {logoUrl ? (
-             <img
-               src={logoUrl}
-               alt="Mijn Aarde"
-               className="mx-auto mb-4 h-20 w-auto object-contain"
-             />
-           ) : (
-             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl gradient-earth">
-               <Leaf className="h-10 w-10 text-primary-foreground" />
-             </div>
-           )}
-           <h1 className="font-display text-3xl font-bold">Mijn Aarde</h1>
-         </div>
+        {/* Logo */}
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex justify-center">
+              <OrganizationLogo size="lg" className="h-20 w-20" />
+            </div>
+            <h1 className="font-display text-3xl font-bold">Mijn Aarde</h1>
+          </div>
  
          <Card className="card-elevated">
            <CardHeader className="text-center">

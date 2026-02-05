@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { MemberForm } from "@/components/members/MemberForm";
+import { MemberTransactions } from "@/components/members/MemberTransactions";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -149,6 +150,11 @@ export default function MemberDetail() {
           isLoading={updateMember.isPending || createMember.isPending}
           onDirtyChange={setIsDirty}
         />
+
+        {/* Transactions Overview - only show for existing members */}
+        {!isNew && id && (
+          <MemberTransactions memberId={id} />
+        )}
       </div>
     </MainLayout>
   );

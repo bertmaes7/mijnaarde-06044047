@@ -1,5 +1,4 @@
  import { useState } from "react";
- import { useNavigate } from "react-router-dom";
  import { useAuthContext } from "@/contexts/AuthContext";
  import { supabase } from "@/integrations/supabase/client";
  import { Button } from "@/components/ui/button";
@@ -12,8 +11,7 @@
  import { useOrganizationLogo } from "@/hooks/useOrganizationLogo";
  
  export default function Donate() {
-   const navigate = useNavigate();
-   const { user, isLoading: authLoading, signOut } = useAuthContext();
+  const { session, isLoading: authLoading, signOut } = useAuthContext();
    const logoUrl = useOrganizationLogo();
    
    const [amount, setAmount] = useState<string>("");
@@ -87,7 +85,7 @@
            <p className="mt-2 text-muted-foreground">Steun ons met een donatie</p>
          </div>
  
-         {!user ? (
+      {!session ? (
            <DonateAuthForm />
          ) : (
            <Card className="card-elevated">

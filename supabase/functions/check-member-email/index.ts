@@ -36,11 +36,11 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if member exists with this email
+    // Check if member exists with this email (case-insensitive)
     const { data: member, error: memberError } = await supabase
       .from("members")
       .select("id, first_name, last_name")
-      .eq("email", email.toLowerCase().trim())
+      .ilike("email", email.toLowerCase().trim())
       .maybeSingle();
 
     if (memberError) {

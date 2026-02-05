@@ -19,8 +19,24 @@
      }
  
      // Parse webhook payload (form-urlencoded)
-     const formData = await req.formData();
-     const paymentId = formData.get("id") as string;
+     let paymentId: string | null = null;
+     
+     const contentType = req.headers.get("content-type") || "";
+     const text = await req.text();
+     console.log("Webhook content-type:", contentType);
+     console.log("Webhook body:", text);
+     
+     if (contentType.includes("application/x-www-form-urlencoded") || text.includes("=")) {
+       const params = new URLSearchParams(text);
+       paymentId = params.get("id");
+     } else if (contentType.includes("application/json")) {
+       try {
+         const json = JSON.parse(text);
+         paymentId = json.id;
+       } catch {
+         console.error("Failed to parse JSON body");
+       }
+     }
  
      if (!paymentId) {
        console.error("No payment ID in webhook");

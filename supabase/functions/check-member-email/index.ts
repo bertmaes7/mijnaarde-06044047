@@ -37,11 +37,13 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Check if member exists with this email (case-insensitive)
-    const { data: member, error: memberError } = await supabase
+    const { data: members, error: memberError } = await supabase
       .from("members")
       .select("id, first_name, last_name")
       .ilike("email", email.toLowerCase().trim())
-      .maybeSingle();
+      .limit(1);
+
+    const member = members?.[0] || null;
 
     if (memberError) {
       console.error("Error checking member:", memberError);

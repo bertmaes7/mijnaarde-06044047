@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMembers } from "@/hooks/useMembers";
 import { useIncome, useExpenses } from "@/hooks/useFinance";
-import { Users, Wallet, Euro, TrendingUp } from "lucide-react";
+import { Users, Wallet, Euro, TrendingUp, UserPlus, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { useMemo } from "react";
 
 export default function Dashboard() {
@@ -87,6 +87,82 @@ export default function Dashboard() {
       description: "vs. vorige maand",
     },
   ];
+
+  // Create combined recent activities list
+  const recentActivities = useMemo(() => {
+    type Activity = {
+      id: string;
+      type: "member" | "income" | "expense";
+      title: string;
+      subtitle: string;
+      date: Date;
+      amount?: number;
+    };
+
+    const activities: Activity[] = [];
+
+    // Add recent members (by member_since or created_at)
+    members.forEach((m) => {
+      const date = m.member_since ? new Date(m.member_since) : new Date(m.created_at);
+      activities.push({
+        id: `member-${m.id}`,
+        type: "member",
+        title: `${m.first_name} ${m.last_name}`,
+        subtitle: "Nieuw lid",
+        date,
+      });
+    });
+
+    // Add recent income
+    income.forEach((i) => {
+      activities.push({
+        id: `income-${i.id}`,
+        type: "income",
+        title: i.description,
+        subtitle: i.member?.first_name ? `${i.member.first_name} ${i.member.last_name}` : i.company?.name || "Inkomst",
+        date: new Date(i.date),
+        amount: Number(i.amount),
+      });
+    });
+
+    // Add recent expenses
+    expenses.forEach((e) => {
+      activities.push({
+        id: `expense-${e.id}`,
+        type: "expense",
+        title: e.description,
+        subtitle: e.company?.name || (e.member?.first_name ? `${e.member.first_name} ${e.member.last_name}` : "Uitgave"),
+        date: new Date(e.date),
+        amount: Number(e.amount),
+      });
+    });
+
+    // Sort by date descending and take top 10
+    return activities.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 10);
+  }, [members, income, expenses]);
+
+  const getActivityIcon = (type: "member" | "income" | "expense") => {
+    switch (type) {
+      case "member":
+        return <UserPlus className="h-4 w-4 text-primary" />;
+      case "income":
+        return <ArrowDownCircle className="h-4 w-4 text-success" />;
+      case "expense":
+        return <ArrowUpCircle className="h-4 w-4 text-destructive" />;
+    }
+  };
+
+  const getActivityBadge = (type: "member" | "income" | "expense") => {
+    switch (type) {
+      case "member":
+        return <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">Lid</span>;
+      case "income":
+        return <span className="text-xs px-2 py-1 rounded-full bg-success/10 text-success">Inkomst</span>;
+      case "expense":
+        return <span className="text-xs px-2 py-1 rounded-full bg-destructive/10 text-destructive">Uitgave</span>;
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-8">
@@ -115,46 +191,42 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Recent Activity */}
+        {/* Recent Activities */}
         <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="font-display text-xl">
-              Recente Leden
+              Recente Activiteiten
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {members.length === 0 ? (
+            {recentActivities.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                Nog geen leden toegevoegd. Ga naar{" "}
-                <a href="/members" className="text-primary hover:underline">
-                  Leden
-                </a>{" "}
-                om te beginnen.
+                Nog geen activiteiten. Voeg leden, inkomsten of uitgaven toe om te beginnen.
               </p>
             ) : (
-              <div className="space-y-4">
-                {members.slice(0, 5).map((member) => (
+              <div className="space-y-3">
+                {recentActivities.map((activity) => (
                   <div
-                    key={member.id}
+                    key={activity.id}
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
-                    <div>
-                      <p className="font-medium">
-                        {member.first_name} {member.last_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {member.company?.name || "Geen bedrijf"}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      {getActivityIcon(activity.type)}
+                      <div>
+                        <p className="font-medium">{activity.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {activity.subtitle} • {activity.date.toLocaleDateString("nl-BE")}
+                        </p>
+                      </div>
                     </div>
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        member.is_active
-                          ? "bg-success/10 text-success"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {member.is_active ? "Actief" : "Inactief"}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {activity.amount !== undefined && (
+                        <span className={`font-medium ${activity.type === "income" ? "text-success" : "text-destructive"}`}>
+                          {activity.type === "income" ? "+" : "-"}{formatCurrency(activity.amount)}
+                        </span>
+                      )}
+                      {getActivityBadge(activity.type)}
+                    </div>
                   </div>
                 ))}
               </div>

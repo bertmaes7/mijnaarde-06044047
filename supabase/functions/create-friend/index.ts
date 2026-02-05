@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create new member
+    // Create new member with only is_active and receives_mail enabled
     const { data: newMember, error: insertError } = await supabase
       .from("members")
       .insert({
@@ -54,7 +54,14 @@ Deno.serve(async (req) => {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         is_active: true,
+        receives_mail: true,
+        // All other flags explicitly false
         is_donor: false,
+        is_active_member: false,
+        is_board_member: false,
+        is_council_member: false,
+        is_ambassador: false,
+        is_admin: false,
         member_since: new Date().toISOString().split('T')[0],
       })
       .select("id")

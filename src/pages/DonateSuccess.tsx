@@ -4,10 +4,12 @@
  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
  import { Button } from "@/components/ui/button";
  import { Leaf, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react";
+ import { useOrganizationLogo } from "@/hooks/useOrganizationLogo";
  
  export default function DonateSuccess() {
    const [searchParams] = useSearchParams();
    const donationId = searchParams.get("donation_id");
+   const logoUrl = useOrganizationLogo();
    
    const [status, setStatus] = useState<"loading" | "paid" | "pending" | "failed">("loading");
    const [amount, setAmount] = useState<number | null>(null);
@@ -62,9 +64,17 @@
        <div className="w-full max-w-md space-y-6">
          {/* Logo */}
          <div className="text-center">
-           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl gradient-earth">
-             <Leaf className="h-10 w-10 text-primary-foreground" />
-           </div>
+           {logoUrl ? (
+             <img
+               src={logoUrl}
+               alt="Mijn Aarde"
+               className="mx-auto mb-4 h-20 w-auto object-contain"
+             />
+           ) : (
+             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl gradient-earth">
+               <Leaf className="h-10 w-10 text-primary-foreground" />
+             </div>
+           )}
            <h1 className="font-display text-3xl font-bold">Mijn Aarde</h1>
          </div>
  

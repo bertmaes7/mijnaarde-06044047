@@ -9,10 +9,12 @@
  import { toast } from "sonner";
  import { Leaf, Loader2, Heart, LogOut } from "lucide-react";
  import { DonateAuthForm } from "@/components/donate/DonateAuthForm";
+ import { useOrganizationLogo } from "@/hooks/useOrganizationLogo";
  
  export default function Donate() {
    const navigate = useNavigate();
    const { user, isLoading: authLoading, signOut } = useAuthContext();
+   const logoUrl = useOrganizationLogo();
    
    const [amount, setAmount] = useState<string>("");
    const [isProcessing, setIsProcessing] = useState(false);
@@ -70,9 +72,17 @@
        <div className="w-full max-w-md space-y-6">
          {/* Logo */}
          <div className="text-center">
-           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl gradient-earth">
-             <Leaf className="h-10 w-10 text-primary-foreground" />
-           </div>
+           {logoUrl ? (
+             <img
+               src={logoUrl}
+               alt="Mijn Aarde"
+               className="mx-auto mb-4 h-20 w-auto object-contain"
+             />
+           ) : (
+             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl gradient-earth">
+               <Leaf className="h-10 w-10 text-primary-foreground" />
+             </div>
+           )}
            <h1 className="font-display text-3xl font-bold">Mijn Aarde</h1>
            <p className="mt-2 text-muted-foreground">Steun ons met een donatie</p>
          </div>

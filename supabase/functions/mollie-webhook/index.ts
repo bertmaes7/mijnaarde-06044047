@@ -109,6 +109,42 @@
        }
  
        console.log("Updated donation", donationId, "to status:", status);
+       
+       // If payment is successful, also create an income record
+       if (status === "paid") {
+         const memberId = payment.metadata?.member_id;
+         const amount = parseFloat(payment.amount?.value || "0");
+         
+         if (memberId && amount > 0) {
+           // Check if income record already exists for this donation
+           const { data: existingIncome } = await supabase
+             .from("income")
+             .select("id")
+             .eq("notes", `Donatie ID: ${donationId}`)
+             .single();
+           
+           if (!existingIncome) {
+             const { error: incomeError } = await supabase
+               .from("income")
+               .insert({
+                 member_id: memberId,
+                 amount: amount,
+                 type: "donatie",
+                 description: "Donatie via Mollie",
+                 date: paidAt ? paidAt.split("T")[0] : new Date().toISOString().split("T")[0],
+                 notes: `Donatie ID: ${donationId}`,
+               });
+             
+             if (incomeError) {
+               console.error("Failed to create income record:", incomeError);
+             } else {
+               console.log("Created income record for donation", donationId);
+             }
+           } else {
+             console.log("Income record already exists for donation", donationId);
+           }
+         }
+       }
      } else {
        console.warn("No donation_id in payment metadata");
      }

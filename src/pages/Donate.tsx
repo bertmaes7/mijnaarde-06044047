@@ -19,7 +19,7 @@
    const [amount, setAmount] = useState<string>("");
    const [isProcessing, setIsProcessing] = useState(false);
  
-   const presetAmounts = [10, 25, 50, 100];
+   const presetAmounts = [7, 49, 77, 777];
  
    const handleDonate = async () => {
      const numericAmount = parseFloat(amount);

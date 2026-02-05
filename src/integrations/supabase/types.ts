@@ -355,6 +355,153 @@ export type Database = {
           },
         ]
       }
+      invoice_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          quantity: number
+          sort_order: number
+          total: number
+          unit_price: number
+          updated_at: string
+          vat_rate: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          quantity?: number
+          sort_order?: number
+          total?: number
+          unit_price?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          quantity?: number
+          sort_order?: number
+          total?: number
+          unit_price?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          description: string
+          due_date: string
+          id: string
+          invoice_date: string
+          invoice_number: string
+          invoice_sequence: number
+          invoice_year: number
+          last_reminder_at: string | null
+          member_id: string | null
+          notes: string | null
+          paid_amount: number
+          paid_at: string | null
+          pdf_url: string | null
+          reminder_count: number
+          sent_at: string | null
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+          vat_amount: number
+          vat_rate: number
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          description: string
+          due_date: string
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          invoice_sequence: number
+          invoice_year?: number
+          last_reminder_at?: string | null
+          member_id?: string | null
+          notes?: string | null
+          paid_amount?: number
+          paid_at?: string | null
+          pdf_url?: string | null
+          reminder_count?: number
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          vat_amount?: number
+          vat_rate?: number
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          invoice_sequence?: number
+          invoice_year?: number
+          last_reminder_at?: string | null
+          member_id?: string | null
+          notes?: string | null
+          paid_amount?: number
+          paid_at?: string | null
+          pdf_url?: string | null
+          reminder_count?: number
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          vat_amount?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mailing_assets: {
         Row: {
           created_at: string
@@ -718,6 +865,7 @@ export type Database = {
       }
     }
     Functions: {
+      generate_invoice_number: { Args: { p_year: number }; Returns: string }
       get_my_member_id: { Args: never; Returns: string }
       has_role: {
         Args: {

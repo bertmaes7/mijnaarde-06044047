@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -211,6 +212,7 @@ export default function CompanyDetail() {
           <Button variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
+          <OrganizationLogo size="lg" className="hidden sm:flex rounded-lg border bg-white p-1" />
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <h1 className="font-display text-3xl font-bold text-foreground">

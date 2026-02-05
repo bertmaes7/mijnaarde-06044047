@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +64,7 @@ export default function EventRegistrations() {
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
+          <OrganizationLogo size="lg" className="hidden sm:flex rounded-lg border bg-white p-1" />
           <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">{event.title}</h1>
             <p className="text-muted-foreground">Inschrijvingen beheren</p>

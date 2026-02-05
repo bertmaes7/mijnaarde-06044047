@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -245,6 +246,7 @@ export default function AnnualReport() {
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>
+            <OrganizationLogo size="lg" className="hidden sm:flex rounded-lg border bg-white p-1" />
             <div>
               <h1 className="font-display text-3xl font-bold text-foreground">
                 Jaarrekening

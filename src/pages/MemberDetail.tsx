@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 import { MemberForm } from "@/components/members/MemberForm";
 import { MemberTransactions } from "@/components/members/MemberTransactions";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,7 @@ export default function MemberDetail() {
             <Button variant="ghost" size="icon" onClick={handleBack}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
+            <OrganizationLogo size="lg" className="hidden sm:flex rounded-lg border bg-white p-1" />
             <div>
               <h1 className="font-display text-3xl font-bold text-foreground">
                 {isNew

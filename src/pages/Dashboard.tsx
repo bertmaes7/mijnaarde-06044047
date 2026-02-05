@@ -3,13 +3,59 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMembers } from "@/hooks/useMembers";
 import { useCompanies } from "@/hooks/useCompanies";
-import { Users, Building2, UserCheck, TrendingUp } from "lucide-react";
+import { useIncome } from "@/hooks/useFinance";
+import { Users, Building2, Euro, TrendingUp } from "lucide-react";
+import { useMemo } from "react";
 
 export default function Dashboard() {
   const { data: members = [] } = useMembers();
   const { data: companies = [] } = useCompanies();
+  const { data: income = [] } = useIncome();
 
-  const activeMembers = members.filter((m) => m.is_active).length;
+  // Calculate current quarter income
+  const { quarterIncome, memberGrowthPercent } = useMemo(() => {
+    const now = new Date();
+    const currentQuarter = Math.floor(now.getMonth() / 3);
+    const currentYear = now.getFullYear();
+    const quarterStart = new Date(currentYear, currentQuarter * 3, 1);
+    const quarterEnd = new Date(currentYear, (currentQuarter + 1) * 3, 0);
+
+    const quarterTotal = income
+      .filter((i) => {
+        const date = new Date(i.date);
+        return date >= quarterStart && date <= quarterEnd;
+      })
+      .reduce((sum, i) => sum + Number(i.amount), 0);
+
+    // Calculate member growth: compare current month vs previous month
+    const currentMonth = now.getMonth();
+    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    const membersThisMonth = members.filter((m) => {
+      if (!m.member_since) return false;
+      const date = new Date(m.member_since);
+      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    }).length;
+
+    const membersLastMonth = members.filter((m) => {
+      if (!m.member_since) return false;
+      const date = new Date(m.member_since);
+      return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
+    }).length;
+
+    let growthPercent = 0;
+    if (membersLastMonth > 0) {
+      growthPercent = Math.round(((membersThisMonth - membersLastMonth) / membersLastMonth) * 100);
+    } else if (membersThisMonth > 0) {
+      growthPercent = 100;
+    }
+
+    return { quarterIncome: quarterTotal, memberGrowthPercent: growthPercent };
+  }, [income, members]);
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" }).format(amount);
 
   const stats = [
     {
@@ -19,10 +65,10 @@ export default function Dashboard() {
       description: "Geregistreerde leden",
     },
     {
-      title: "Actieve Leden",
-      value: activeMembers,
-      icon: UserCheck,
-      description: "Momenteel actief",
+      title: "Inkomsten dit kwartaal",
+      value: formatCurrency(quarterIncome),
+      icon: Euro,
+      description: "Huidige kwartaal",
     },
     {
       title: "Bedrijven",
@@ -31,10 +77,10 @@ export default function Dashboard() {
       description: "Gekoppelde organisaties",
     },
     {
-      title: "Groeipercentage",
-      value: "+12%",
+      title: "Nieuwe leden",
+      value: memberGrowthPercent >= 0 ? `+${memberGrowthPercent}%` : `${memberGrowthPercent}%`,
       icon: TrendingUp,
-      description: "Afgelopen maand",
+      description: "vs. vorige maand",
     },
   ];
 

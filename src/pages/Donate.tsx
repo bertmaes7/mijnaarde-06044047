@@ -100,33 +100,23 @@ export default function Donate() {
     setIsSavingFriend(true);
 
     try {
-      // Check if member already exists
-      const { data: existingMember } = await supabase.functions.invoke("check-member-email", {
-        body: { email: email.toLowerCase().trim() },
+      const { data, error } = await supabase.functions.invoke("create-friend", {
+        body: { 
+          email: email.toLowerCase().trim(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+        },
       });
 
-      if (existingMember?.exists) {
-        // Member already exists, just show success
-        toast.success("Je bent al geregistreerd als vriend!");
-        setStep("friend-success");
-      } else {
-        // Create new member without donation
-        const { error } = await supabase
-          .from("members")
-          .insert({
-            email: email.toLowerCase().trim(),
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            is_active: true,
-            is_donor: false,
-            member_since: new Date().toISOString().split('T')[0],
-          });
+      if (error) throw error;
 
-        if (error) throw error;
-        
+      if (data?.alreadyExists) {
+        toast.success("Je bent al geregistreerd als vriend!");
+      } else {
         toast.success("Je bent toegevoegd als vriend!");
-        setStep("friend-success");
       }
+      
+      setStep("friend-success");
     } catch (error) {
       console.error("Error saving friend:", error);
       toast.error("Er ging iets mis bij het opslaan");

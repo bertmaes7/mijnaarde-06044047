@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,20 +22,16 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
-    // SMTP configuration
-    const smtpHost = Deno.env.get("SMTP_HOST");
-    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
-    const smtpUser = Deno.env.get("SMTP_USER");
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-    const smtpFromEmail = Deno.env.get("SMTP_FROM_EMAIL");
-    const smtpFromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "bert@mijnaarde.com";
+    const fromName = Deno.env.get("RESEND_FROM_NAME") || "Mijn Aarde vzw";
 
-    if (!smtpHost || !smtpUser || !smtpPassword || !smtpFromEmail) {
-      throw new Error("SMTP configuratie ontbreekt");
+    if (!resendApiKey) {
+      throw new Error("RESEND_API_KEY ontbreekt");
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const resend = new Resend(resendApiKey);
 
     const { invoiceId, type }: SendInvoiceRequest = await req.json();
 
@@ -208,33 +204,21 @@ serve(async (req) => {
       </html>
     `;
 
-    // Send email via SMTP
-    console.log(`Sending ${type} email to ${customerEmail} for invoice ${invoice.invoice_number} via SMTP`);
+    // Send email via Resend
+    console.log(`Sending ${type} email to ${customerEmail} for invoice ${invoice.invoice_number} via Resend`);
     
-    const smtpClient = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: false, // Start without TLS, upgrade via STARTTLS
-        auth: {
-          username: smtpUser,
-          password: smtpPassword,
-        },
-      },
+    const { error: sendError } = await resend.emails.send({
+      from: `${fromName} <${fromEmail}>`,
+      to: [customerEmail],
+      subject: subject,
+      html: emailHtml,
     });
 
-    try {
-      await smtpClient.send({
-        from: `${smtpFromName} <${smtpFromEmail}>`,
-        to: customerEmail,
-        subject: subject,
-        html: emailHtml,
-      });
-
-      console.log("Email sent successfully via SMTP");
-    } finally {
-      await smtpClient.close();
+    if (sendError) {
+      throw new Error(`Email verzenden mislukt: ${sendError.message}`);
     }
+
+    console.log("Email sent successfully via Resend");
 
     // Update invoice status
     const updateData: Record<string, unknown> = {};

@@ -2,18 +2,17 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMembers } from "@/hooks/useMembers";
-import { useCompanies } from "@/hooks/useCompanies";
-import { useIncome } from "@/hooks/useFinance";
-import { Users, Building2, Euro, TrendingUp } from "lucide-react";
+import { useIncome, useExpenses } from "@/hooks/useFinance";
+import { Users, Wallet, Euro, TrendingUp } from "lucide-react";
 import { useMemo } from "react";
 
 export default function Dashboard() {
   const { data: members = [] } = useMembers();
-  const { data: companies = [] } = useCompanies();
   const { data: income = [] } = useIncome();
+  const { data: expenses = [] } = useExpenses();
 
-  // Calculate current quarter income
-  const { quarterIncome, memberGrowthPercent } = useMemo(() => {
+  // Calculate current quarter income and current balance
+  const { quarterIncome, currentBalance, memberGrowthPercent } = useMemo(() => {
     const now = new Date();
     const currentQuarter = Math.floor(now.getMonth() / 3);
     const currentYear = now.getFullYear();
@@ -26,6 +25,11 @@ export default function Dashboard() {
         return date >= quarterStart && date <= quarterEnd;
       })
       .reduce((sum, i) => sum + Number(i.amount), 0);
+
+    // Calculate total balance (all time income - expenses)
+    const totalIncome = income.reduce((sum, i) => sum + Number(i.amount), 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+    const balance = totalIncome - totalExpenses;
 
     // Calculate member growth: compare current month vs previous month
     const currentMonth = now.getMonth();
@@ -51,8 +55,8 @@ export default function Dashboard() {
       growthPercent = 100;
     }
 
-    return { quarterIncome: quarterTotal, memberGrowthPercent: growthPercent };
-  }, [income, members]);
+    return { quarterIncome: quarterTotal, currentBalance: balance, memberGrowthPercent: growthPercent };
+  }, [income, expenses, members]);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" }).format(amount);
@@ -71,10 +75,10 @@ export default function Dashboard() {
       description: "Huidige kwartaal",
     },
     {
-      title: "Bedrijven",
-      value: companies.length,
-      icon: Building2,
-      description: "Gekoppelde organisaties",
+      title: "Huidig Saldo",
+      value: formatCurrency(currentBalance),
+      icon: Wallet,
+      description: "Inkomsten - Uitgaven",
     },
     {
       title: "Nieuwe leden",
@@ -83,7 +87,6 @@ export default function Dashboard() {
       description: "vs. vorige maand",
     },
   ];
-
   return (
     <MainLayout>
       <div className="space-y-8">

@@ -12,6 +12,7 @@ interface AuthContextType {
   passwordChangeRequired: boolean;
   signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
+  signInWithMagicLinkAndData: (email: string, firstName: string, lastName: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
 }
@@ -26,6 +27,7 @@ const defaultAuthContext: AuthContextType = {
   passwordChangeRequired: false,
   signInWithPassword: async () => ({ error: null }),
   signInWithMagicLink: async () => ({ error: null }),
+  signInWithMagicLinkAndData: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => ({ error: null }),
 };

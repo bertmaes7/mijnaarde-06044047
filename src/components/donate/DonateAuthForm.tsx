@@ -1,216 +1,205 @@
- import { useState } from "react";
- import { useAuthContext } from "@/contexts/AuthContext";
- import { Button } from "@/components/ui/button";
- import { Input } from "@/components/ui/input";
- import { PasswordInput } from "@/components/ui/password-input";
- import { Label } from "@/components/ui/label";
- import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
- import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
- import { toast } from "sonner";
- import { Loader2, Mail, User } from "lucide-react";
- import { z } from "zod";
- 
- const emailSchema = z.string().email("Ongeldig e-mailadres");
- const passwordSchema = z.string().min(6, "Wachtwoord moet minimaal 6 tekens zijn");
- 
- export function DonateAuthForm() {
-   const { signInWithPassword, signUp } = useAuthContext();
-   
-   const [isLoading, setIsLoading] = useState(false);
-   const [activeTab, setActiveTab] = useState<"login" | "register">("register");
-   
-   // Login form
-   const [loginEmail, setLoginEmail] = useState("");
-   const [loginPassword, setLoginPassword] = useState("");
-   
-   // Register form
-   const [registerEmail, setRegisterEmail] = useState("");
-   const [registerPassword, setRegisterPassword] = useState("");
-   const [firstName, setFirstName] = useState("");
-   const [lastName, setLastName] = useState("");
- 
-   const handleLogin = async (e: React.FormEvent) => {
-     e.preventDefault();
-     
-     try {
-       emailSchema.parse(loginEmail);
-     } catch {
-       toast.error("Ongeldig e-mailadres");
-       return;
-     }
- 
-     setIsLoading(true);
-     const { error } = await signInWithPassword(loginEmail, loginPassword);
-     setIsLoading(false);
- 
-     if (error) {
-       if (error.message.includes("Invalid login credentials")) {
-         toast.error("Ongeldige inloggegevens");
-       } else if (error.message.includes("Email not confirmed")) {
-         toast.error("Bevestig eerst je e-mailadres via de link in je inbox");
-       } else {
-         toast.error(error.message);
-       }
-     }
-   };
- 
-   const handleRegister = async (e: React.FormEvent) => {
-     e.preventDefault();
-     
-     try {
-       emailSchema.parse(registerEmail);
-       passwordSchema.parse(registerPassword);
-     } catch (err) {
-       if (err instanceof z.ZodError) {
-         toast.error(err.errors[0].message);
-       }
-       return;
-     }
- 
-     if (!firstName.trim() || !lastName.trim()) {
-       toast.error("Vul je voor- en achternaam in");
-       return;
-     }
- 
-     setIsLoading(true);
-     const { error } = await signUp(registerEmail, registerPassword, firstName.trim(), lastName.trim());
-     setIsLoading(false);
- 
-     if (error) {
-       if (error.message.includes("already registered")) {
-         toast.error("Dit e-mailadres is al geregistreerd. Log in of gebruik een ander adres.");
-       } else {
-         toast.error(error.message);
-       }
-     } else {
-       toast.success("Account aangemaakt! Check je e-mail om je registratie te bevestigen.");
-     }
-   };
- 
-   return (
-     <Card className="card-elevated">
-       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "register")}>
-         <CardHeader>
-           <TabsList className="grid w-full grid-cols-2">
-             <TabsTrigger value="register">Registreren</TabsTrigger>
-             <TabsTrigger value="login">Inloggen</TabsTrigger>
-           </TabsList>
-         </CardHeader>
-         <CardContent>
-           <TabsContent value="register" className="mt-0">
-             <form onSubmit={handleRegister} className="space-y-4">
-               <CardDescription className="mb-4">
-                 Maak een account aan om te kunnen doneren
-               </CardDescription>
-               
-               <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <Label htmlFor="firstName">Voornaam</Label>
-                   <div className="relative">
-                     <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                     <Input
-                       id="firstName"
-                       placeholder="Jan"
-                       className="pl-10"
-                       value={firstName}
-                       onChange={(e) => setFirstName(e.target.value)}
-                       required
-                     />
-                   </div>
-                 </div>
-                 <div className="space-y-2">
-                   <Label htmlFor="lastName">Achternaam</Label>
-                   <Input
-                     id="lastName"
-                     placeholder="Jansen"
-                     value={lastName}
-                     onChange={(e) => setLastName(e.target.value)}
-                     required
-                   />
-                 </div>
-               </div>
- 
-               <div className="space-y-2">
-                 <Label htmlFor="register-email">E-mailadres</Label>
-                 <div className="relative">
-                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                   <Input
-                     id="register-email"
-                     type="email"
-                     placeholder="naam@voorbeeld.nl"
-                     className="pl-10"
-                     value={registerEmail}
-                     onChange={(e) => setRegisterEmail(e.target.value)}
-                     required
-                   />
-                 </div>
-               </div>
- 
-               <div className="space-y-2">
-                 <Label htmlFor="register-password">Wachtwoord</Label>
-                 <PasswordInput
-                   id="register-password"
-                   placeholder="Minimaal 6 tekens"
-                   value={registerPassword}
-                   onChange={(e) => setRegisterPassword(e.target.value)}
-                   required
-                 />
-               </div>
- 
-               <Button type="submit" className="w-full" disabled={isLoading}>
-                 {isLoading ? (
-                   <Loader2 className="h-4 w-4 animate-spin" />
-                 ) : (
-                   "Account aanmaken"
-                 )}
-               </Button>
-             </form>
-           </TabsContent>
- 
-           <TabsContent value="login" className="mt-0">
-             <form onSubmit={handleLogin} className="space-y-4">
-               <CardDescription className="mb-4">
-                 Log in met je bestaande account
-               </CardDescription>
-               
-               <div className="space-y-2">
-                 <Label htmlFor="login-email">E-mailadres</Label>
-                 <div className="relative">
-                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                   <Input
-                     id="login-email"
-                     type="email"
-                     placeholder="naam@voorbeeld.nl"
-                     className="pl-10"
-                     value={loginEmail}
-                     onChange={(e) => setLoginEmail(e.target.value)}
-                     required
-                   />
-                 </div>
-               </div>
- 
-               <div className="space-y-2">
-                 <Label htmlFor="login-password">Wachtwoord</Label>
-                 <PasswordInput
-                   id="login-password"
-                   placeholder="••••••••"
-                   value={loginPassword}
-                   onChange={(e) => setLoginPassword(e.target.value)}
-                   required
-                 />
-               </div>
- 
-               <Button type="submit" className="w-full" disabled={isLoading}>
-                 {isLoading ? (
-                   <Loader2 className="h-4 w-4 animate-spin" />
-                 ) : (
-                   "Inloggen"
-                 )}
-               </Button>
-             </form>
-           </TabsContent>
-         </CardContent>
-       </Tabs>
-     </Card>
-   );
- }
+import { useState } from "react";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
+import { Loader2, Mail, User, CheckCircle } from "lucide-react";
+import { z } from "zod";
+
+const emailSchema = z.string().email("Ongeldig e-mailadres");
+
+export function DonateAuthForm() {
+  const { signInWithMagicLinkAndData } = useAuthContext();
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [existingMember, setExistingMember] = useState<{ firstName: string; lastName: string } | null>(null);
+  
+  const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+
+  const checkExistingMember = async (emailToCheck: string) => {
+    if (!emailToCheck.trim()) return;
+    
+    try {
+      emailSchema.parse(emailToCheck);
+    } catch {
+      return;
+    }
+
+    setIsCheckingEmail(true);
+    try {
+      // Use edge function to check member (bypasses RLS)
+      const { data, error } = await supabase.functions.invoke("check-member-email", {
+        body: { email: emailToCheck.toLowerCase().trim() },
+      });
+
+      if (!error && data?.exists) {
+        setExistingMember({ firstName: data.firstName, lastName: data.lastName });
+        setFirstName(data.firstName);
+        setLastName(data.lastName);
+        toast.info(`Welkom terug, ${data.firstName}!`);
+      } else {
+        setExistingMember(null);
+      }
+    } catch (err) {
+      console.error("Error checking email:", err);
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      emailSchema.parse(email);
+    } catch {
+      toast.error("Ongeldig e-mailadres");
+      return;
+    }
+
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error("Vul je voor- en achternaam in");
+      return;
+    }
+
+    setIsLoading(true);
+    
+    const { error } = await signInWithMagicLinkAndData(
+      email.toLowerCase().trim(),
+      firstName.trim(),
+      lastName.trim()
+    );
+    
+    setIsLoading(false);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      setEmailSent(true);
+      toast.success("Check je e-mail voor de login-link!");
+    }
+  };
+
+  if (emailSent) {
+    return (
+      <Card className="card-elevated">
+        <CardContent className="pt-6">
+          <div className="text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <CheckCircle className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Check je e-mail</h3>
+              <p className="text-muted-foreground mt-2">
+                We hebben een login-link gestuurd naar <strong>{email}</strong>
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Klik op de link in de e-mail om verder te gaan met je donatie.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEmailSent(false);
+                setEmail("");
+                setFirstName("");
+                setLastName("");
+                setExistingMember(null);
+              }}
+            >
+              Ander e-mailadres gebruiken
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="card-elevated">
+      <CardHeader>
+        <CardTitle>Doneren</CardTitle>
+        <CardDescription>
+          Vul je gegevens in om te doneren. We sturen je een login-link per e-mail.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">E-mailadres</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="naam@voorbeeld.nl"
+                className="pl-10"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={(e) => checkExistingMember(e.target.value)}
+                required
+              />
+              {isCheckingEmail && (
+                <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">Voornaam</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="firstName"
+                  placeholder="Jan"
+                  className="pl-10"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  disabled={!!existingMember}
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Achternaam</Label>
+              <Input
+                id="lastName"
+                placeholder="Jansen"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                disabled={!!existingMember}
+                required
+              />
+            </div>
+          </div>
+
+          {existingMember && (
+            <p className="text-sm text-muted-foreground">
+              We hebben je gevonden in ons systeem. Je ontvangt een login-link per e-mail.
+            </p>
+          )}
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Verstuur login-link"
+            )}
+          </Button>
+          
+          <p className="text-xs text-center text-muted-foreground">
+            Geen wachtwoord nodig. We sturen je een veilige login-link per e-mail.
+          </p>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}

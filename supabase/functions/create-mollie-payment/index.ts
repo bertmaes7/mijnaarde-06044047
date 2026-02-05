@@ -144,7 +144,7 @@ serve(async (req) => {
         },
         description: `Donatie - ${member.first_name} ${member.last_name}`,
         redirectUrl: `${origin}/donate/success?donation_id=${donation.id}`,
-        webhookUrl: `${supabaseUrl}/functions/v1/mollie-webhook`,
+        webhookUrl: "https://ejxdsuvutluetnaiklmx.supabase.co/functions/v1/mollie-webhook",
         metadata: {
           donation_id: donation.id,
           member_id: member.id,

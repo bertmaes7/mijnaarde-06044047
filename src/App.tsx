@@ -29,6 +29,8 @@ import PublicEvent from "./pages/PublicEvent";
 import Tools from "./pages/Tools";
 import NotFound from "./pages/NotFound";
 import Unsubscribe from "./pages/Unsubscribe";
+ import Donate from "./pages/Donate";
+ import DonateSuccess from "./pages/DonateSuccess";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +47,8 @@ const App = () => (
             <Route path="/change-password" element={<ChangePassword />} />
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/events/:id" element={<PublicEvent />} />
+             <Route path="/donate" element={<Donate />} />
+             <Route path="/donate/success" element={<DonateSuccess />} />
             {/* Member portal (logged in members) */}
             <Route
               path="/member"

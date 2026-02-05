@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -191,6 +192,7 @@ export default function Expenses() {
                 <ArrowLeft className="h-5 w-5" />
               </Link>
             </Button>
+            <OrganizationLogo size="lg" className="hidden sm:flex rounded-lg border bg-white p-1" />
             <div>
               <h1 className="font-display text-3xl font-bold text-foreground">
                 Uitgaven

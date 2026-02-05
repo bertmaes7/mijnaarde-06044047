@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -670,9 +671,12 @@ export default function Mailings() {
     <MainLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Mailings</h1>
-            <p className="text-muted-foreground">Beheer en verstuur mailings naar leden</p>
+          <div className="flex items-center gap-4">
+            <OrganizationLogo size="lg" className="hidden sm:flex rounded-lg border bg-white p-1" />
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Mailings</h1>
+              <p className="text-muted-foreground">Beheer en verstuur mailings naar leden</p>
+            </div>
           </div>
           <Button onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-2" />

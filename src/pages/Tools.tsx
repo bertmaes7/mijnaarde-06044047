@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -304,14 +305,17 @@ export default function Tools() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-foreground flex items-center gap-2">
-            <Wrench className="h-8 w-8 text-primary" />
-            Tools
-          </h1>
-          <p className="text-muted-foreground">
-            Beheertools voor onderhoud en bulk-operaties
-          </p>
+        <div className="flex items-center gap-4">
+          <OrganizationLogo size="lg" className="hidden sm:flex rounded-lg border bg-white p-1" />
+          <div>
+            <h1 className="font-display text-3xl font-bold text-foreground flex items-center gap-2">
+              <Wrench className="h-8 w-8 text-primary" />
+              Tools
+            </h1>
+            <p className="text-muted-foreground">
+              Beheertools voor onderhoud en bulk-operaties
+            </p>
+          </div>
         </div>
 
         {/* Duplicate Emails Section */}

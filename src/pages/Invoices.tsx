@@ -1,5 +1,6 @@
  import { useState, useMemo } from "react";
  import { MainLayout } from "@/components/layout/MainLayout";
+ import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
  import { Button } from "@/components/ui/button";
  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  import { Link } from "react-router-dom";
@@ -72,21 +73,22 @@
        <div className="space-y-6">
          {/* Header */}
          <div className="flex items-center justify-between">
-           <div className="flex items-center gap-4">
-             <Button asChild variant="ghost" size="icon">
-               <Link to="/finance">
-                 <ArrowLeft className="h-5 w-5" />
-               </Link>
-             </Button>
-             <div>
-               <h1 className="font-display text-3xl font-bold text-foreground">
-                 Uitgaande Facturen
-               </h1>
-               <p className="mt-1 text-muted-foreground">
-                 Beheer facturen naar leden en bedrijven
-               </p>
-             </div>
-           </div>
+          <div className="flex items-center gap-4">
+            <Button asChild variant="ghost" size="icon">
+              <Link to="/finance">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <OrganizationLogo size="lg" className="hidden sm:flex rounded-lg border bg-white p-1" />
+            <div>
+              <h1 className="font-display text-3xl font-bold text-foreground">
+                Uitgaande Facturen
+              </h1>
+              <p className="mt-1 text-muted-foreground">
+                Beheer facturen naar leden en bedrijven
+              </p>
+            </div>
+          </div>
            <div className="flex gap-2">
              <Button variant="outline" onClick={() => setIsVatOpen(true)}>
                <FileText className="h-4 w-4 mr-2" />

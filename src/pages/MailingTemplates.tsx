@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -552,9 +553,12 @@ export default function MailingTemplates() {
     <MainLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Templates</h1>
-            <p className="text-muted-foreground">Beheer e-mailsjablonen en herbruikbare tekstblokken</p>
+          <div className="flex items-center gap-4">
+            <OrganizationLogo size="lg" className="hidden sm:flex rounded-lg border bg-white p-1" />
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Templates</h1>
+              <p className="text-muted-foreground">Beheer e-mailsjablonen en herbruikbare tekstblokken</p>
+            </div>
           </div>
           <Button onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-2" />

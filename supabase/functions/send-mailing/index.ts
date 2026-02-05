@@ -343,12 +343,12 @@ const handler = async (req: Request): Promise<Response> => {
     const requestOrigin = req.headers.get("origin") || "https://mijnaarde.lovable.app";
     console.log(`Using origin for unsubscribe links: ${requestOrigin}`);
 
-    // Initialize SMTP client
+    // Initialize SMTP client with STARTTLS (port 587)
     const smtpClient = new SMTPClient({
       connection: {
         hostname: smtpHost,
         port: smtpPort,
-        tls: true,
+        tls: false, // Start without TLS, upgrade via STARTTLS
         auth: {
           username: smtpUser,
           password: smtpPassword,

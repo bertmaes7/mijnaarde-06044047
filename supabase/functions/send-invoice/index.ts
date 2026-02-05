@@ -215,7 +215,7 @@ serve(async (req) => {
       connection: {
         hostname: smtpHost,
         port: smtpPort,
-        tls: true,
+        tls: false, // Start without TLS, upgrade via STARTTLS
         auth: {
           username: smtpUser,
           password: smtpPassword,

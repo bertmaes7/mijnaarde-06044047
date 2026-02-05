@@ -124,6 +124,26 @@ export function useAuth() {
     return { error };
   };
 
+  const signInWithMagicLinkAndData = async (
+    email: string,
+    firstName: string,
+    lastName: string
+  ) => {
+    const redirectUrl = `${window.location.origin}/donate`;
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: redirectUrl,
+        shouldCreateUser: true,
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      },
+    });
+    return { error };
+  };
+
   const signUp = async (
     email: string,
     password: string,
@@ -154,6 +174,7 @@ export function useAuth() {
     ...state,
     signInWithPassword,
     signInWithMagicLink,
+    signInWithMagicLinkAndData,
     signUp,
     signOut,
   };

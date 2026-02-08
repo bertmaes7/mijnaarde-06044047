@@ -194,6 +194,17 @@ export default function Auth() {
           <p className="text-center text-sm text-muted-foreground">
             Geen account? Neem contact op met een beheerder.
           </p>
+
+          <div className="pt-2 text-center">
+            <Button
+              variant="link"
+              className="text-xs text-muted-foreground/50 hover:text-muted-foreground"
+              onClick={() => navigate("/donate")}
+              type="button"
+            >
+              Steun ons
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

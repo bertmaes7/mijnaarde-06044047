@@ -344,8 +344,14 @@ const handler = async (req: Request): Promise<Response> => {
     let failCount = 0;
     const errors: string[] = [];
 
-    for (const member of membersList) {
+    for (let i = 0; i < membersList.length; i++) {
+      const member = membersList[i];
       if (!member.email) continue;
+
+      // Wait 600ms between emails to stay under Resend's 2/sec rate limit
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 600));
+      }
 
       try {
         const personalizedSubject = replacePlaceholders(templateData.subject, member, assetsData);

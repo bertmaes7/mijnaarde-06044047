@@ -344,6 +344,8 @@ const handler = async (req: Request): Promise<Response> => {
     let failCount = 0;
     const errors: string[] = [];
 
+    const MAX_RETRIES = 3;
+
     for (let i = 0; i < membersList.length; i++) {
       const member = membersList[i];
       if (!member.email) continue;
@@ -353,38 +355,54 @@ const handler = async (req: Request): Promise<Response> => {
         await new Promise(resolve => setTimeout(resolve, 600));
       }
 
-      try {
-        const personalizedSubject = replacePlaceholders(templateData.subject, member, assetsData);
-        let personalizedHtml = replacePlaceholders(templateData.html_content, member, assetsData);
-        let personalizedText = templateData.text_content 
-          ? replacePlaceholders(templateData.text_content, member, assetsData)
-          : undefined;
+      let sent = false;
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          const personalizedSubject = replacePlaceholders(templateData.subject, member, assetsData);
+          let personalizedHtml = replacePlaceholders(templateData.html_content, member, assetsData);
+          let personalizedText = templateData.text_content 
+            ? replacePlaceholders(templateData.text_content, member, assetsData)
+            : undefined;
 
-        const unsubscribeUrl = generateUnsubscribeUrl(member.id, requestOrigin);
-        personalizedHtml = addUnsubscribeFooter(personalizedHtml, unsubscribeUrl);
-        if (personalizedText) {
-          personalizedText = addUnsubscribeFooterText(personalizedText, unsubscribeUrl);
+          const unsubscribeUrl = generateUnsubscribeUrl(member.id, requestOrigin);
+          personalizedHtml = addUnsubscribeFooter(personalizedHtml, unsubscribeUrl);
+          if (personalizedText) {
+            personalizedText = addUnsubscribeFooterText(personalizedText, unsubscribeUrl);
+          }
+
+          const { error: sendError } = await resend.emails.send({
+            from: `${fromName} <${fromEmail}>`,
+            to: [member.email],
+            subject: personalizedSubject,
+            html: personalizedHtml,
+            text: personalizedText,
+          });
+
+          if (sendError) {
+            throw new Error(sendError.message);
+          }
+
+          successCount++;
+          sent = true;
+          console.log(`Email sent to ${member.email}`);
+          break;
+        } catch (emailError: unknown) {
+          const errorMessage = emailError instanceof Error ? emailError.message : String(emailError);
+          const isRateLimit = errorMessage.toLowerCase().includes("too many requests");
+
+          if (isRateLimit && attempt < MAX_RETRIES - 1) {
+            const backoffMs = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
+            console.warn(`Rate limited for ${member.email}, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
+            continue;
+          }
+
+          if (attempt === MAX_RETRIES - 1) {
+            failCount++;
+            errors.push(`${member.email}: ${errorMessage}`);
+            console.error(`Failed to send to ${member.email} after ${MAX_RETRIES} attempts:`, errorMessage);
+          }
         }
-
-        const { error: sendError } = await resend.emails.send({
-          from: `${fromName} <${fromEmail}>`,
-          to: [member.email],
-          subject: personalizedSubject,
-          html: personalizedHtml,
-          text: personalizedText,
-        });
-
-        if (sendError) {
-          throw new Error(sendError.message);
-        }
-
-        successCount++;
-        console.log(`Email sent to ${member.email}`);
-      } catch (emailError: unknown) {
-        failCount++;
-        const errorMessage = emailError instanceof Error ? emailError.message : String(emailError);
-        errors.push(`${member.email}: ${errorMessage}`);
-        console.error(`Failed to send to ${member.email}:`, emailError);
       }
     }
 

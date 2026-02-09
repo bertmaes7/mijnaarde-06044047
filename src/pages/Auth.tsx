@@ -7,8 +7,9 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Leaf, Loader2, Mail, Sparkles } from "lucide-react";
+import { Loader2, Mail, Sparkles } from "lucide-react";
 import { z } from "zod";
+import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 
 const emailSchema = z.string().email("Ongeldig e-mailadres");
 
@@ -126,8 +127,8 @@ export default function Auth() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md card-elevated">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl gradient-earth">
-            <Leaf className="h-8 w-8 text-primary-foreground" />
+          <div className="mx-auto mb-4">
+            <OrganizationLogo size="lg" />
           </div>
           <CardTitle className="font-display text-2xl">Mijn Aarde</CardTitle>
           <CardDescription>

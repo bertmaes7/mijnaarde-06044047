@@ -1,12 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
 
 interface ResetPasswordRequest {
   memberId: string;
@@ -26,45 +27,49 @@ async function sendPasswordEmail(
   firstName: string,
   tempPassword: string
 ): Promise<void> {
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "bert@mijnaarde.com";
-  const fromName = Deno.env.get("RESEND_FROM_NAME") || "Mijn Aarde vzw";
+  const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+  const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
+  const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
-  if (!resendApiKey) {
-    console.error("RESEND_API_KEY not configured, skipping email");
+  if (!mailersendApiKey) {
+    console.error("MAILERSEND_API_KEY not configured, skipping email");
     return;
   }
 
-  const resend = new Resend(resendApiKey);
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #16a34a;">Wachtwoord gereset</h2>
+      <p>Beste ${firstName},</p>
+      <p>Uw wachtwoord voor het beheerdersportaal van Mijn Aarde vzw is gereset.</p>
+      <p>Uw nieuwe tijdelijke inloggegevens zijn:</p>
+      <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
+        <p style="margin: 0;"><strong>E-mail:</strong> ${email}</p>
+        <p style="margin: 8px 0 0 0;"><strong>Tijdelijk wachtwoord:</strong> <code style="background-color: #e5e7eb; padding: 4px 8px; border-radius: 4px;">${tempPassword}</code></p>
+      </div>
+      <p><strong>Belangrijk:</strong> Bij uw volgende inlog wordt u gevraagd om een nieuw wachtwoord in te stellen.</p>
+      <p>Met vriendelijke groeten,<br>Mijn Aarde vzw</p>
+    </div>
+  `;
 
-  try {
-    const { error } = await resend.emails.send({
-      from: `${fromName} <${fromEmail}>`,
-      to: [email],
+  const response = await fetch(MAILERSEND_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${mailersendApiKey}`,
+    },
+    body: JSON.stringify({
+      from: { email: fromEmail, name: fromName },
+      to: [{ email }],
       subject: "Uw wachtwoord is gereset - Mijn Aarde vzw",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #16a34a;">Wachtwoord gereset</h2>
-          <p>Beste ${firstName},</p>
-          <p>Uw wachtwoord voor het beheerdersportaal van Mijn Aarde vzw is gereset.</p>
-          <p>Uw nieuwe tijdelijke inloggegevens zijn:</p>
-          <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0;"><strong>E-mail:</strong> ${email}</p>
-            <p style="margin: 8px 0 0 0;"><strong>Tijdelijk wachtwoord:</strong> <code style="background-color: #e5e7eb; padding: 4px 8px; border-radius: 4px;">${tempPassword}</code></p>
-          </div>
-          <p><strong>Belangrijk:</strong> Bij uw volgende inlog wordt u gevraagd om een nieuw wachtwoord in te stellen.</p>
-          <p>Met vriendelijke groeten,<br>Mijn Aarde vzw</p>
-        </div>
-      `,
-    });
+      html,
+    }),
+  });
 
-    if (error) {
-      console.error("Failed to send email:", error);
-    } else {
-      console.log("Password reset email sent successfully to:", email);
-    }
-  } catch (error) {
-    console.error("Failed to send email:", error);
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(`MailerSend error [${response.status}]: ${errorBody}`);
+  } else {
+    console.log("Password reset email sent successfully to:", email);
   }
 }
 
@@ -86,7 +91,6 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify requesting user is admin
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -122,7 +126,6 @@ serve(async (req: Request): Promise<Response> => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get member details
     const { data: member, error: memberError } = await adminClient
       .from("members")
       .select("*")
@@ -143,7 +146,6 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Prevent resetting own password through this flow
     if (member.auth_user_id === user.id) {
       return new Response(
         JSON.stringify({ error: "Je kunt je eigen wachtwoord niet via deze functie resetten. Gebruik de 'Wachtwoord wijzigen' optie." }),
@@ -151,10 +153,8 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Generate new temporary password
     const tempPassword = generateTemporaryPassword();
 
-    // Update auth user password
     const { error: updateAuthError } = await adminClient.auth.admin.updateUserById(
       member.auth_user_id,
       { password: tempPassword }
@@ -168,7 +168,6 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Set password_change_required flag
     const { error: updateMemberError } = await adminClient
       .from("members")
       .update({ password_change_required: true })
@@ -178,7 +177,6 @@ serve(async (req: Request): Promise<Response> => {
       console.error("Error updating member:", updateMemberError);
     }
 
-    // Send email with new password
     if (member.email) {
       await sendPasswordEmail(member.email, member.first_name, tempPassword);
     }

@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,13 +7,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+
 interface SendInvoiceRequest {
   invoiceId: string;
   type: 'invoice' | 'reminder';
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -22,16 +22,15 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "bert@mijnaarde.com";
-    const fromName = Deno.env.get("RESEND_FROM_NAME") || "Mijn Aarde vzw";
+    const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+    const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
+    const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY ontbreekt");
+    if (!mailersendApiKey) {
+      throw new Error("MAILERSEND_API_KEY ontbreekt");
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const resend = new Resend(resendApiKey);
 
     const { invoiceId, type }: SendInvoiceRequest = await req.json();
 
@@ -137,22 +136,10 @@ serve(async (req) => {
         
         <div style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0;">
           <table style="width: 100%;">
-            <tr>
-              <td><strong>Factuurnummer:</strong></td>
-              <td>${invoice.invoice_number}</td>
-            </tr>
-            <tr>
-              <td><strong>Factuurdatum:</strong></td>
-              <td>${formatDate(invoice.invoice_date)}</td>
-            </tr>
-            <tr>
-              <td><strong>Vervaldatum:</strong></td>
-              <td>${formatDate(invoice.due_date)}</td>
-            </tr>
-            <tr>
-              <td><strong>Omschrijving:</strong></td>
-              <td>${invoice.description}</td>
-            </tr>
+            <tr><td><strong>Factuurnummer:</strong></td><td>${invoice.invoice_number}</td></tr>
+            <tr><td><strong>Factuurdatum:</strong></td><td>${formatDate(invoice.invoice_date)}</td></tr>
+            <tr><td><strong>Vervaldatum:</strong></td><td>${formatDate(invoice.due_date)}</td></tr>
+            <tr><td><strong>Omschrijving:</strong></td><td>${invoice.description}</td></tr>
           </table>
         </div>
         
@@ -167,21 +154,13 @@ serve(async (req) => {
               <th style="padding: 10px; text-align: right;">Totaal</th>
             </tr>
           </thead>
-          <tbody>
-            ${itemsHtml}
-          </tbody>
+          <tbody>${itemsHtml}</tbody>
         </table>
         
         <div style="margin-top: 20px; text-align: right;">
           <table style="margin-left: auto;">
-            <tr>
-              <td style="padding: 5px 20px;">Subtotaal:</td>
-              <td style="padding: 5px 0; text-align: right;">€ ${invoice.subtotal.toFixed(2)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 5px 20px;">BTW:</td>
-              <td style="padding: 5px 0; text-align: right;">€ ${invoice.vat_amount.toFixed(2)}</td>
-            </tr>
+            <tr><td style="padding: 5px 20px;">Subtotaal:</td><td style="padding: 5px 0; text-align: right;">€ ${invoice.subtotal.toFixed(2)}</td></tr>
+            <tr><td style="padding: 5px 20px;">BTW:</td><td style="padding: 5px 0; text-align: right;">€ ${invoice.vat_amount.toFixed(2)}</td></tr>
             <tr style="font-weight: bold; font-size: 1.2em;">
               <td style="padding: 10px 20px; border-top: 2px solid #333;">Totaal:</td>
               <td style="padding: 10px 0; border-top: 2px solid #333; text-align: right;">€ ${invoice.total.toFixed(2)}</td>
@@ -204,21 +183,29 @@ serve(async (req) => {
       </html>
     `;
 
-    // Send email via Resend
-    console.log(`Sending ${type} email to ${customerEmail} for invoice ${invoice.invoice_number} via Resend`);
+    // Send email via MailerSend
+    console.log(`Sending ${type} email to ${customerEmail} for invoice ${invoice.invoice_number} via MailerSend`);
     
-    const { error: sendError } = await resend.emails.send({
-      from: `${fromName} <${fromEmail}>`,
-      to: [customerEmail],
-      subject: subject,
-      html: emailHtml,
+    const response = await fetch(MAILERSEND_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${mailersendApiKey}`,
+      },
+      body: JSON.stringify({
+        from: { email: fromEmail, name: fromName },
+        to: [{ email: customerEmail }],
+        subject,
+        html: emailHtml,
+      }),
     });
 
-    if (sendError) {
-      throw new Error(`Email verzenden mislukt: ${sendError.message}`);
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Email verzenden mislukt [${response.status}]: ${errorBody}`);
     }
 
-    console.log("Email sent successfully via Resend");
+    console.log("Email sent successfully via MailerSend");
 
     // Update invoice status
     const updateData: Record<string, unknown> = {};

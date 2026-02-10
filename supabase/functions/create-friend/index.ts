@@ -1,10 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -79,7 +80,6 @@ Deno.serve(async (req) => {
     try {
       await sendThankYouEmail(supabase, normalizedEmail, firstName.trim());
     } catch (emailError) {
-      // Log but don't fail the request if email fails
       console.error("Failed to send thank you email:", emailError);
     }
 
@@ -103,9 +103,9 @@ Deno.serve(async (req) => {
 });
 
 async function sendThankYouEmail(supabase: any, email: string, firstName: string) {
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  if (!resendApiKey) {
-    console.error("RESEND_API_KEY not configured, skipping thank you email");
+  const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+  if (!mailersendApiKey) {
+    console.error("MAILERSEND_API_KEY not configured, skipping thank you email");
     return;
   }
 
@@ -205,17 +205,23 @@ async function sendThankYouEmail(supabase: any, email: string, firstName: string
 </body>
 </html>`;
 
-  const resend = new Resend(resendApiKey);
-
-  const { error } = await resend.emails.send({
-    from: `${fromName} <${fromEmail}>`,
-    to: [email],
-    subject: `Welkom bij ${orgName}`,
-    html,
+  const response = await fetch(MAILERSEND_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${mailersendApiKey}`,
+    },
+    body: JSON.stringify({
+      from: { email: fromEmail, name: fromName },
+      to: [{ email }],
+      subject: `Welkom bij ${orgName}`,
+      html,
+    }),
   });
 
-  if (error) {
-    throw new Error(`Resend error: ${JSON.stringify(error)}`);
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`MailerSend error [${response.status}]: ${errorBody}`);
   }
 
   console.log(`Thank you email sent to ${email}`);

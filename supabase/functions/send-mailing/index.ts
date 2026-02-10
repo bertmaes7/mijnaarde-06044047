@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { Resend } from "npm:resend@2.0.0";
 
 // Rate limiting configuration
 const RATE_LIMIT = {
@@ -145,6 +144,42 @@ function replacePlaceholders(content: string, member: Member, assets: MailingAss
   return result;
 }
 
+// MailerSend API helper
+const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+
+async function sendViaMailerSend(
+  apiKey: string,
+  from: { email: string; name: string },
+  to: string,
+  subject: string,
+  html: string,
+  text?: string
+): Promise<void> {
+  const body: Record<string, unknown> = {
+    from: { email: from.email, name: from.name },
+    to: [{ email: to }],
+    subject,
+    html,
+  };
+  if (text) {
+    body.text = text;
+  }
+
+  const response = await fetch(MAILERSEND_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`MailerSend API error [${response.status}]: ${errorBody}`);
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("Send mailing function called - method:", req.method);
   
@@ -173,12 +208,12 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "bert@mijnaarde.com";
-    const fromName = Deno.env.get("RESEND_FROM_NAME") || "Mijn Aarde vzw";
+    const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+    const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
+    const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
     
     console.log("Env vars present - URL:", !!supabaseUrl, "Anon:", !!supabaseAnonKey, "Service:", !!supabaseServiceKey);
-    console.log("Resend API key present:", !!resendApiKey);
+    console.log("MailerSend API key present:", !!mailersendApiKey);
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
       console.error("Missing Supabase environment variables");
@@ -188,10 +223,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    if (!resendApiKey) {
-      console.error("Missing Resend API key");
+    if (!mailersendApiKey) {
+      console.error("Missing MailerSend API key");
       return new Response(
-        JSON.stringify({ error: "RESEND_API_KEY ontbreekt. Voeg deze toe aan de secrets." }),
+        JSON.stringify({ error: "MAILERSEND_API_KEY ontbreekt. Voeg deze toe aan de secrets." }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -333,12 +368,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Sending to ${membersList.length} recipients via Resend (${fromEmail})`);
+    console.log(`Sending to ${membersList.length} recipients via MailerSend (${fromEmail})`);
 
     const requestOrigin = req.headers.get("origin") || "https://mijnaarde.lovable.app";
     console.log(`Using origin for unsubscribe links: ${requestOrigin}`);
-
-    const resend = new Resend(resendApiKey);
 
     let successCount = 0;
     let failCount = 0;
@@ -350,7 +383,7 @@ const handler = async (req: Request): Promise<Response> => {
       const member = membersList[i];
       if (!member.email) continue;
 
-      // Wait 600ms between emails to stay under Resend's 2/sec rate limit
+      // Wait 600ms between emails to respect rate limits
       if (i > 0) {
         await new Promise(resolve => setTimeout(resolve, 600));
       }
@@ -370,17 +403,14 @@ const handler = async (req: Request): Promise<Response> => {
             personalizedText = addUnsubscribeFooterText(personalizedText, unsubscribeUrl);
           }
 
-          const { error: sendError } = await resend.emails.send({
-            from: `${fromName} <${fromEmail}>`,
-            to: [member.email],
-            subject: personalizedSubject,
-            html: personalizedHtml,
-            text: personalizedText,
-          });
-
-          if (sendError) {
-            throw new Error(sendError.message);
-          }
+          await sendViaMailerSend(
+            mailersendApiKey,
+            { email: fromEmail, name: fromName },
+            member.email,
+            personalizedSubject,
+            personalizedHtml,
+            personalizedText
+          );
 
           successCount++;
           sent = true;
@@ -388,10 +418,10 @@ const handler = async (req: Request): Promise<Response> => {
           break;
         } catch (emailError: unknown) {
           const errorMessage = emailError instanceof Error ? emailError.message : String(emailError);
-          const isRateLimit = errorMessage.toLowerCase().includes("too many requests");
+          const isRateLimit = errorMessage.includes("429") || errorMessage.toLowerCase().includes("too many requests");
 
           if (isRateLimit && attempt < MAX_RETRIES - 1) {
-            const backoffMs = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
+            const backoffMs = 1000 * Math.pow(2, attempt);
             console.warn(`Rate limited for ${member.email}, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
             await new Promise(resolve => setTimeout(resolve, backoffMs));
             continue;

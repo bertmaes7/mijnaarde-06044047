@@ -60,7 +60,7 @@ export default function Contributions() {
   }, [contributions]);
 
   const handleGenerateForAll = async () => {
-    const activeMembers = members.filter(m => m.is_active);
+    const activeMembers = members.filter(m => m.is_active_member);
     const existingMemberIds = new Set(contributions.map(c => c.member_id));
     const newMembers = activeMembers.filter(m => !existingMemberIds.has(m.id));
 

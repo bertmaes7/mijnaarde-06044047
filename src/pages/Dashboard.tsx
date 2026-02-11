@@ -81,19 +81,27 @@ export default function Dashboard() {
       }
 
       const diffDays = Math.ceil((thisYearBday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays <= 30) {
+      // Also check if birthday was in the past 2 weeks
+      const pastBday = new Date(today.getFullYear(), dobDate.getMonth(), dobDate.getDate());
+      if (pastBday > today) {
+        pastBday.setFullYear(today.getFullYear() - 1);
+      }
+      const pastDiffDays = Math.ceil((today.getTime() - pastBday.getTime()) / (1000 * 60 * 60 * 24));
+      const isPast = pastDiffDays <= 14 && pastDiffDays > 0 && diffDays > 14;
+      const effectiveDays = isPast ? -pastDiffDays : diffDays;
+      if (effectiveDays <= 30 && effectiveDays >= -14) {
         results.push({
           id: member.id,
           first_name: member.first_name,
           last_name: member.last_name,
           date_of_birth: dob,
-          days_until: diffDays,
+          days_until: effectiveDays,
           age: thisYearBday.getFullYear() - dobDate.getFullYear(),
         });
       }
     }
 
-    return results.sort((a, b) => a.days_until - b.days_until).slice(0, 5);
+    return results.sort((a, b) => a.days_until - b.days_until).slice(0, 10);
   }, [members]);
 
   const formatCurrency = (amount: number) =>
@@ -218,7 +226,7 @@ export default function Dashboard() {
                 <div className="space-y-3">
                   {upcomingBirthdays.map((b) => {
                     const dob = new Date(b.date_of_birth);
-                    const dayLabel = b.days_until === 0 ? "🎂 Vandaag!" : b.days_until === 1 ? "Morgen" : `Over ${b.days_until} dagen`;
+                    const dayLabel = b.days_until === 0 ? "🎂 Vandaag!" : b.days_until === 1 ? "Morgen" : b.days_until < 0 ? `${Math.abs(b.days_until)} dagen geleden` : `Over ${b.days_until} dagen`;
                     return (
                       <div key={b.id} className="flex items-center justify-between rounded-lg border p-3">
                         <div>

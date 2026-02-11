@@ -118,7 +118,7 @@ export function useAuth() {
   };
 
   const signInWithMagicLink = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `${window.location.origin}/auth`;
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {

@@ -241,14 +241,14 @@ export default function MemberPortal() {
             <CardHeader>
               <CardTitle className="font-display flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-warning" />
-                Openstaande Contributies
+                Openstaand Lidgeld
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {contributions.filter(c => c.status === "pending").map(c => (
                 <div key={c.id} className="flex items-center justify-between rounded-lg border p-4">
                   <div>
-                    <p className="font-medium">Contributie {c.contribution_year}</p>
+                    <p className="font-medium">Lidgeld {c.contribution_year}</p>
                     <p className="text-sm text-muted-foreground">€{Number(c.amount).toFixed(2)}</p>
                   </div>
                   <Button

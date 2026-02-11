@@ -273,7 +273,7 @@
                  <FormItem>
                    <FormLabel>Omschrijving</FormLabel>
                    <FormControl>
-                     <Input {...field} placeholder="Bijv. Contributie 2026" />
+                     <Input {...field} placeholder="Bijv. Lidgeld 2026" />
                    </FormControl>
                    <FormMessage />
                  </FormItem>

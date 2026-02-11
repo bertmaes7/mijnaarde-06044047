@@ -27,7 +27,7 @@ const financeSubItems = [
   { href: "/finance/inventory", label: "Inventaris", icon: ClipboardList },
   { href: "/finance/annual-report", label: "Jaarrekening", icon: FileSpreadsheet },
   { href: "/finance/budget", label: "Begroting", icon: Calculator },
-  { href: "/finance/contributions", label: "Contributies", icon: Euro },
+  { href: "/finance/contributions", label: "Lidgeld", icon: Euro },
 ];
 
 const mailingSubItems = [

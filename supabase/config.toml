@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.send-onboarding-email]
 verify_jwt = false
+
+[functions.send-magic-link]
+verify_jwt = false

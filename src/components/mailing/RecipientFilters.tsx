@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -7,16 +8,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, Filter } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { X, Filter, Tag, ChevronDown } from "lucide-react";
 
 export interface RecipientFiltersState {
   status: "all" | "active" | "inactive";
   companyId: string;
   city: string;
   membershipType: string;
+  tagIds: string[];
 }
 
 interface Company {
+  id: string;
+  name: string;
+}
+
+interface TagOption {
   id: string;
   name: string;
 }
@@ -26,6 +46,7 @@ interface RecipientFiltersProps {
   onFiltersChange: (filters: RecipientFiltersState) => void;
   companies: Company[];
   cities: string[];
+  tags?: TagOption[];
 }
 
 const MEMBERSHIP_TYPES = [
@@ -43,12 +64,17 @@ export function RecipientFilters({
   onFiltersChange,
   companies,
   cities,
+  tags = [],
 }: RecipientFiltersProps) {
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  const [tagInputValue, setTagInputValue] = useState("");
+
   const activeFiltersCount = [
     filters.status !== "all",
     filters.companyId !== "all",
     filters.city !== "all",
     filters.membershipType !== "all",
+    filters.tagIds.length > 0,
   ].filter(Boolean).length;
 
   const handleReset = () => {
@@ -57,6 +83,7 @@ export function RecipientFilters({
       companyId: "all",
       city: "all",
       membershipType: "all",
+      tagIds: [],
     });
   };
 
@@ -71,7 +98,7 @@ export function RecipientFilters({
           </Badge>
         )}
       </div>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
         <Select
           value={filters.status}
           onValueChange={(value: "all" | "active" | "inactive") =>
@@ -145,6 +172,56 @@ export function RecipientFilters({
           </SelectContent>
         </Select>
 
+        {/* Tag Filter */}
+        <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9 gap-1">
+              <Tag className="h-3.5 w-3.5" />
+              Tags
+              {filters.tagIds.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">
+                  {filters.tagIds.length}
+                </Badge>
+              )}
+              <ChevronDown className="h-3 w-3 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-0" align="start">
+            <Command>
+              <CommandInput
+                placeholder="Zoek tag..."
+                value={tagInputValue}
+                onValueChange={setTagInputValue}
+              />
+              <CommandList>
+                <CommandEmpty>Geen tags gevonden</CommandEmpty>
+                <CommandGroup>
+                  {tags
+                    .filter(t => !filters.tagIds.includes(t.id))
+                    .filter(t => t.name.toLowerCase().includes(tagInputValue.toLowerCase()))
+                    .map((tag) => (
+                      <CommandItem
+                        key={tag.id}
+                        value={tag.name}
+                        onSelect={() => {
+                          onFiltersChange({
+                            ...filters,
+                            tagIds: [...filters.tagIds, tag.id],
+                          });
+                          setTagPopoverOpen(false);
+                          setTagInputValue("");
+                        }}
+                      >
+                        <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
+                        {tag.name}
+                      </CommandItem>
+                    ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
         {activeFiltersCount > 0 && (
           <Button
             variant="ghost"
@@ -157,6 +234,33 @@ export function RecipientFilters({
           </Button>
         )}
       </div>
+
+      {/* Show active tag badges */}
+      {filters.tagIds.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {filters.tagIds.map((tagId) => {
+            const tag = tags.find(t => t.id === tagId);
+            return tag ? (
+              <Badge key={tagId} variant="secondary" className="gap-1 pr-1">
+                <Tag className="h-3 w-3" />
+                {tag.name}
+                <button
+                  type="button"
+                  onClick={() =>
+                    onFiltersChange({
+                      ...filters,
+                      tagIds: filters.tagIds.filter(id => id !== tagId),
+                    })
+                  }
+                  className="ml-1 hover:bg-muted rounded p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ) : null;
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -171,6 +275,7 @@ export function applyRecipientFilters<T extends {
   is_donor: boolean | null;
   is_council_member: boolean | null;
   receives_mail: boolean | null;
+  member_tags?: { tag_id: string }[];
 }>(members: T[], filters: RecipientFiltersState): T[] {
   return members.filter((member) => {
     // Status filter
@@ -206,6 +311,12 @@ export function applyRecipientFilters<T extends {
           if (!member.receives_mail) return false;
           break;
       }
+    }
+
+    // Tag filter - member must have ALL selected tags
+    if (filters.tagIds.length > 0) {
+      const memberTagIds = member.member_tags?.map(mt => mt.tag_id) || [];
+      if (!filters.tagIds.every(tagId => memberTagIds.includes(tagId))) return false;
     }
 
     return true;

@@ -23,6 +23,7 @@ import {
 } from "@/hooks/useMailing";
 import { useMembers } from "@/hooks/useMembers";
 import { useCompanies } from "@/hooks/useCompanies";
+import { useTags } from "@/hooks/useTags";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -61,6 +62,7 @@ export default function Mailings() {
   const { data: templates } = useMailingTemplates();
   const { data: members } = useMembers();
   const { data: companies = [] } = useCompanies();
+  const { data: allTags = [] } = useTags();
   const createMailing = useCreateMailing();
   const updateMailing = useUpdateMailing();
   const deleteMailing = useDeleteMailing();
@@ -74,6 +76,7 @@ export default function Mailings() {
     companyId: "all",
     city: "all",
     membershipType: "all",
+    tagIds: [],
   });
   const [formData, setFormData] = useState({
     title: "",
@@ -196,6 +199,7 @@ export default function Mailings() {
       companyId: "all",
       city: "all",
       membershipType: "all",
+      tagIds: [],
     });
     setFormData({
       title: "",
@@ -218,6 +222,7 @@ export default function Mailings() {
       companyId: mailing.filter_company_id || "all",
       city: mailing.filter_city || "all",
       membershipType: mailing.filter_membership_type || "all",
+      tagIds: [],
     });
     const scheduledDate = mailing.scheduled_at ? new Date(mailing.scheduled_at) : null;
     setFormData({
@@ -418,6 +423,7 @@ export default function Mailings() {
                         onFiltersChange={setRecipientFilters}
                         companies={companies}
                         cities={cities}
+                        tags={allTags}
                       />
 
                       {/* Search */}

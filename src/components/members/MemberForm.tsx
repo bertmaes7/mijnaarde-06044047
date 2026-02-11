@@ -344,7 +344,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                   <FormItem>
                     <FormLabel>Voornaam *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Jan" {...field} />
+                      <Input placeholder="bv. Jan" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -357,7 +357,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                   <FormItem>
                     <FormLabel>Achternaam *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Janssen" {...field} />
+                      <Input placeholder="bv. Janssen" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -372,7 +372,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="jan@voorbeeld.be"
+                        placeholder="bv. jan@voorbeeld.be"
                         {...field}
                         onBlur={(e) => {
                           field.onBlur();
@@ -398,7 +398,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                   <FormItem>
                     <FormLabel>Telefoon</FormLabel>
                     <FormControl>
-                      <Input placeholder="+32 2 123 45 67" {...field} />
+                      <Input placeholder="bv. +32 2 123 45 67" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -411,7 +411,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                   <FormItem>
                     <FormLabel>Mobiel</FormLabel>
                     <FormControl>
-                      <Input placeholder="+32 470 12 34 56" {...field} />
+                      <Input placeholder="bv. +32 470 12 34 56" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -426,7 +426,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                     <div className="flex gap-2">
                       <FormControl>
                         <Input
-                          placeholder="https://www.mijnwebsite.be"
+                          placeholder="bv. https://www.mijnwebsite.be"
                           {...field}
                         />
                       </FormControl>
@@ -468,7 +468,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                   <FormItem className="sm:col-span-2">
                     <FormLabel>Straat en huisnummer</FormLabel>
                     <FormControl>
-                      <Input placeholder="Hoofdstraat 123" {...field} />
+                      <Input placeholder="bv. Hoofdstraat 123" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -481,7 +481,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                   <FormItem>
                     <FormLabel>Postcode</FormLabel>
                     <FormControl>
-                      <Input placeholder="1000" {...field} />
+                      <Input placeholder="bv. 1000" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -494,7 +494,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                   <FormItem>
                     <FormLabel>Stad</FormLabel>
                     <FormControl>
-                      <Input placeholder="Brussel" {...field} />
+                      <Input placeholder="bv. Brussel" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -507,7 +507,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                   <FormItem>
                     <FormLabel>Land</FormLabel>
                     <FormControl>
-                      <Input placeholder="België" {...field} />
+                      <Input placeholder="bv. België" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -532,7 +532,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                   <FormItem>
                     <FormLabel>Bankrekeningnummer (IBAN)</FormLabel>
                     <FormControl>
-                      <Input placeholder="BE12 3456 7890 1234" {...field} />
+                      <Input placeholder="bv. BE12 3456 7890 1234" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

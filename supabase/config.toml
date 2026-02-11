@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.toggle-admin-role]
 verify_jwt = false
+
+[functions.send-onboarding-email]
+verify_jwt = false

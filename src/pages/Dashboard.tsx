@@ -37,14 +37,16 @@ export default function Dashboard() {
     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
     const membersThisMonth = members.filter((m) => {
-      if (!m.member_since) return false;
-      const date = new Date(m.member_since);
+      const dateStr = m.member_since || m.created_at;
+      if (!dateStr) return false;
+      const date = new Date(dateStr);
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     }).length;
 
     const membersLastMonth = members.filter((m) => {
-      if (!m.member_since) return false;
-      const date = new Date(m.member_since);
+      const dateStr = m.member_since || m.created_at;
+      if (!dateStr) return false;
+      const date = new Date(dateStr);
       return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
     }).length;
 

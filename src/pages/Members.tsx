@@ -77,10 +77,11 @@ export default function Members() {
       }
 
       // Tag filter - member must have ALL selected tags
+      // Tag filter - member must have ANY selected tag (OR logic)
       if (filters.tagIds.length > 0) {
         const memberTagIds = member.member_tags?.map(mt => mt.tag_id) || [];
-        const hasAllTags = filters.tagIds.every(tagId => memberTagIds.includes(tagId));
-        if (!hasAllTags) return false;
+        const hasAnyTag = filters.tagIds.some(tagId => memberTagIds.includes(tagId));
+        if (!hasAnyTag) return false;
       }
 
       return true;

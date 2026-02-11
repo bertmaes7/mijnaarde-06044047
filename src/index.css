@@ -33,57 +33,57 @@
 
 @layer base {
   :root {
-    /* Earth-inspired color palette */
-    --background: 45 20% 97%;
-    --foreground: 150 25% 15%;
+    /* Earth-inspired color palette — Mijn Aarde vzw */
+    --background: 35 30% 95%;
+    --foreground: 150 30% 12%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 150 25% 15%;
+    --card: 40 25% 98%;
+    --card-foreground: 150 30% 12%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 150 25% 15%;
+    --popover: 40 25% 98%;
+    --popover-foreground: 150 30% 12%;
 
     /* Deep forest green */
-    --primary: 152 45% 28%;
-    --primary-foreground: 45 20% 97%;
+    --primary: 152 50% 24%;
+    --primary-foreground: 40 30% 96%;
 
-    /* Warm sand/beige */
-    --secondary: 38 35% 92%;
-    --secondary-foreground: 150 25% 15%;
+    /* Warm sand */
+    --secondary: 32 40% 88%;
+    --secondary-foreground: 150 30% 12%;
 
-    /* Muted sage */
-    --muted: 140 15% 92%;
-    --muted-foreground: 150 10% 45%;
+    /* Sage muted */
+    --muted: 80 18% 88%;
+    --muted-foreground: 150 12% 40%;
 
-    /* Earth accent - terracotta */
-    --accent: 25 60% 55%;
+    /* Terracotta accent */
+    --accent: 18 55% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 140 15% 85%;
-    --input: 140 15% 85%;
-    --ring: 152 45% 28%;
+    --border: 35 20% 82%;
+    --input: 35 20% 82%;
+    --ring: 152 50% 24%;
 
     --radius: 0.75rem;
 
     /* Custom tokens */
-    --earth-gradient: linear-gradient(135deg, hsl(152 45% 28%) 0%, hsl(140 35% 38%) 100%);
-    --card-shadow: 0 4px 20px -4px hsl(150 25% 15% / 0.08);
-    --card-shadow-hover: 0 8px 30px -4px hsl(150 25% 15% / 0.12);
+    --earth-gradient: linear-gradient(135deg, hsl(152 50% 24%) 0%, hsl(140 38% 34%) 100%);
+    --card-shadow: 0 4px 20px -4px hsl(30 20% 20% / 0.10);
+    --card-shadow-hover: 0 8px 30px -4px hsl(30 20% 20% / 0.16);
 
-    --sidebar-background: 150 20% 98%;
-    --sidebar-foreground: 150 25% 25%;
-    --sidebar-primary: 152 45% 28%;
-    --sidebar-primary-foreground: 45 20% 97%;
-    --sidebar-accent: 140 20% 94%;
-    --sidebar-accent-foreground: 150 25% 15%;
-    --sidebar-border: 140 15% 88%;
-    --sidebar-ring: 152 45% 28%;
+    --sidebar-background: 38 28% 96%;
+    --sidebar-foreground: 150 30% 20%;
+    --sidebar-primary: 152 50% 24%;
+    --sidebar-primary-foreground: 40 30% 96%;
+    --sidebar-accent: 35 25% 90%;
+    --sidebar-accent-foreground: 150 30% 12%;
+    --sidebar-border: 35 20% 85%;
+    --sidebar-ring: 152 50% 24%;
 
     /* Success/warning states */
-    --success: 152 60% 40%;
+    --success: 152 55% 36%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;

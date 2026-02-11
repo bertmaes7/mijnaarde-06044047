@@ -68,7 +68,8 @@ export default function Dashboard() {
 
       const dobDate = new Date(dob);
       const thisYearBday = new Date(today.getFullYear(), dobDate.getMonth(), dobDate.getDate());
-      if (thisYearBday < today) {
+      const birthdayPassedThisYear = thisYearBday < today;
+      if (birthdayPassedThisYear) {
         thisYearBday.setFullYear(today.getFullYear() + 1);
       }
 
@@ -81,6 +82,8 @@ export default function Dashboard() {
       const pastDiffDays = Math.ceil((today.getTime() - pastBday.getTime()) / (1000 * 60 * 60 * 24));
       const isPast = pastDiffDays <= 14 && pastDiffDays > 0 && diffDays > 14;
       const effectiveDays = isPast ? -pastDiffDays : diffDays;
+      // Calculate the age they turn/turned on their birthday this year
+      const ageThisYear = today.getFullYear() - dobDate.getFullYear();
       if (effectiveDays <= 30 && effectiveDays >= -14) {
         results.push({
           id: member.id,
@@ -88,7 +91,7 @@ export default function Dashboard() {
           last_name: member.last_name,
           date_of_birth: dob,
           days_until: effectiveDays,
-          age: thisYearBday.getFullYear() - dobDate.getFullYear(),
+          age: ageThisYear,
         });
       }
     }

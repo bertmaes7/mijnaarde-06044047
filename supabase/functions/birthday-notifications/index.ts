@@ -64,7 +64,7 @@ serve(async (req: Request) => {
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       if (diffDays <= daysAhead) {
-        const age = thisYearBirthday.getFullYear() - dob.getFullYear();
+        const age = today.getFullYear() - dob.getFullYear();
         upcomingBirthdays.push({
           first_name: member.first_name,
           last_name: member.last_name,

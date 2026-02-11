@@ -39,7 +39,7 @@ serve(async (req) => {
     // Check if member exists with this email (case-insensitive)
     const { data: members, error: memberError } = await supabase
       .from("members")
-      .select("id, first_name, last_name, is_active")
+      .select("id, first_name, last_name, is_active, is_active_member")
       .ilike("email", email.toLowerCase().trim())
       .limit(1);
 
@@ -54,11 +54,12 @@ serve(async (req) => {
     }
 
     if (member) {
-      console.log("Found existing member:", member.id, "is_active:", member.is_active);
+      // isActive for login purposes = is_active_member (not just is_active)
+      console.log("Found existing member:", member.id, "is_active_member:", member.is_active_member);
       return new Response(
         JSON.stringify({
           exists: true,
-          isActive: member.is_active ?? false,
+          isActive: member.is_active_member ?? false,
           firstName: member.first_name,
           lastName: member.last_name,
         }),

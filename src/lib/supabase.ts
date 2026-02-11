@@ -44,6 +44,7 @@ export type Member = {
   instagram_url: string | null;
   tiktok_url: string | null;
   member_since: string | null;
+  date_of_birth: string | null;
   receives_mail: boolean;
   is_board_member: boolean;
   is_active_member: boolean;

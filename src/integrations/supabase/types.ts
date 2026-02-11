@@ -716,6 +716,7 @@ export type Database = {
           company_id: string | null
           country: string | null
           created_at: string | null
+          date_of_birth: string | null
           email: string | null
           facebook_url: string | null
           first_name: string
@@ -750,6 +751,7 @@ export type Database = {
           company_id?: string | null
           country?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
           email?: string | null
           facebook_url?: string | null
           first_name: string
@@ -784,6 +786,7 @@ export type Database = {
           company_id?: string | null
           country?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
           email?: string | null
           facebook_url?: string | null
           first_name?: string

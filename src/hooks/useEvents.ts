@@ -238,6 +238,14 @@ export function useRegisterForEvent() {
         .select()
         .single();
       if (error) throw error;
+
+      // Send confirmation email (fire and forget)
+      supabase.functions.invoke("send-event-confirmation", {
+        body: { registrationId: data.id },
+      }).catch((err) => {
+        console.error("Failed to send event confirmation:", err);
+      });
+
       return data;
     },
     onSuccess: (_, variables) => {

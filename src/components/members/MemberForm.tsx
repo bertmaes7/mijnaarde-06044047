@@ -59,6 +59,7 @@ const memberSchema = z.object({
   tiktok_url: z.string().url("Ongeldige URL").optional().or(z.literal("")),
   bank_account: z.string().optional(),
   member_since: z.string().optional(),
+  date_of_birth: z.string().optional(),
   receives_mail: z.boolean(),
   is_board_member: z.boolean(),
   is_active_member: z.boolean(),
@@ -112,6 +113,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
       tiktok_url: member?.tiktok_url || "",
       bank_account: member?.bank_account || "",
       member_since: member?.member_since || "",
+      date_of_birth: member?.date_of_birth || "",
       receives_mail: member?.receives_mail ?? true,
       is_board_member: member?.is_board_member ?? false,
       is_active_member: member?.is_active_member ?? true,
@@ -150,6 +152,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
         tiktok_url: member.tiktok_url || "",
         bank_account: member.bank_account || "",
         member_since: member.member_since || "",
+        date_of_birth: member.date_of_birth || "",
         receives_mail: member.receives_mail ?? true,
         is_board_member: member.is_board_member ?? false,
         is_active_member: member.is_active_member ?? true,
@@ -220,6 +223,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
       tiktok_url: data.tiktok_url || undefined,
       bank_account: data.bank_account || undefined,
       member_since: data.member_since || undefined,
+      date_of_birth: data.date_of_birth || undefined,
     };
     onSubmit(cleanedData);
   };
@@ -575,7 +579,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
+                <FormField
                 control={form.control}
                 name="member_since"
                 render={({ field }) => (
@@ -583,6 +587,22 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
                     <FormLabel className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
                       Lid sinds
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="date_of_birth"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Geboortedatum
                     </FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />

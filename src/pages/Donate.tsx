@@ -198,16 +198,16 @@ export default function Donate() {
             <OrganizationLogo size="lg" />
           </div>
           <h1 className="font-display text-3xl font-bold">Mijn Aarde</h1>
-          <p className="mt-2 text-muted-foreground">Steun ons met een donatie</p>
+          <p className="mt-2 text-muted-foreground">{isContribution ? description : "Steun ons met een donatie"}</p>
         </div>
 
         {/* Step 1: Email */}
         {step === "email" && (
           <Card className="card-elevated">
             <CardHeader>
-              <CardTitle>Doneren</CardTitle>
+              <CardTitle>{isContribution ? "Lidgeld betalen" : "Doneren"}</CardTitle>
               <CardDescription>
-                Vul je e-mailadres in om te beginnen
+                {isContribution ? "Bevestig je e-mailadres om verder te gaan" : "Vul je e-mailadres in om te beginnen"}
               </CardDescription>
             </CardHeader>
             <CardContent>

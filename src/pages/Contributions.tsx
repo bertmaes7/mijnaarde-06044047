@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -235,8 +236,50 @@ export default function Contributions() {
                       <TableCell className="font-medium">
                         {c.member ? `${c.member.first_name} ${c.member.last_name}` : "Onbekend"}
                       </TableCell>
-                      <TableCell>€{Number(c.amount).toFixed(2)}</TableCell>
-                      <TableCell>{getStatusBadge(c.status)}</TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          className="w-24 h-8"
+                          defaultValue={Number(c.amount).toFixed(2)}
+                          onBlur={(e) => {
+                            const newAmount = parseFloat(e.target.value);
+                            if (!isNaN(newAmount) && newAmount !== Number(c.amount)) {
+                              updateContribution.mutate({ id: c.id, data: { amount: newAmount } });
+                            }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={c.status}
+                          onValueChange={(value) => {
+                            const data: Record<string, unknown> = { status: value };
+                            if (value === "paid" && !c.paid_at) {
+                              data.paid_at = new Date().toISOString();
+                            }
+                            if (value !== "paid") {
+                              data.paid_at = null;
+                            }
+                            updateContribution.mutate({ id: c.id, data });
+                          }}
+                        >
+                          <SelectTrigger className="w-[130px] h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">
+                              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Open</span>
+                            </SelectItem>
+                            <SelectItem value="paid">
+                              <span className="flex items-center gap-1"><Check className="h-3 w-3" />Betaald</span>
+                            </SelectItem>
+                            <SelectItem value="failed">
+                              <span className="flex items-center gap-1"><X className="h-3 w-3" />Mislukt</span>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>
                         {c.paid_at
                           ? format(new Date(c.paid_at), "d MMM yyyy", { locale: nl })

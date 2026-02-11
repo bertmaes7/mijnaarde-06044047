@@ -73,13 +73,13 @@ export function useCreateContribution() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contributions"] });
-      toast.success("Contributie aangemaakt");
+      toast.success("Lidgeld aangemaakt");
     },
     onError: (error: any) => {
       if (error.code === "23505") {
-        toast.error("Contributie voor dit jaar bestaat al voor dit lid");
+        toast.error("Lidgeld voor dit jaar bestaat al voor dit lid");
       } else {
-        toast.error("Fout bij aanmaken contributie");
+        toast.error("Fout bij aanmaken lidgeld");
       }
     },
   });
@@ -98,10 +98,10 @@ export function useUpdateContribution() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contributions"] });
-      toast.success("Contributie bijgewerkt");
+      toast.success("Lidgeld bijgewerkt");
     },
     onError: () => {
-      toast.error("Fout bij bijwerken contributie");
+      toast.error("Fout bij bijwerken lidgeld");
     },
   });
 }

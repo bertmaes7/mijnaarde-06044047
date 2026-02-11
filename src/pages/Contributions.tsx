@@ -65,7 +65,7 @@ export default function Contributions() {
     const newMembers = activeMembers.filter(m => !existingMemberIds.has(m.id));
 
     if (newMembers.length === 0) {
-      toast.info("Alle actieve leden hebben al een contributie voor dit jaar");
+      toast.info("Alle actieve leden hebben al lidgeld voor dit jaar");
       return;
     }
 
@@ -76,7 +76,7 @@ export default function Contributions() {
         amount: defaultAmount,
       });
     }
-    toast.success(`${newMembers.length} contributies aangemaakt`);
+    toast.success(`${newMembers.length} lidgelden aangemaakt`);
   };
 
   const handleMarkPaid = async (id: string) => {
@@ -103,8 +103,8 @@ export default function Contributions() {
     <MainLayout>
       <div className="space-y-6">
         <PageHeader
-          title="Contributies"
-          description="Beheer jaarlijkse ledenbijdragen"
+          title="Lidgeld"
+          description="Beheer jaarlijks lidgeld"
           actions={
             <div className="flex items-center gap-3">
               <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
@@ -171,9 +171,9 @@ export default function Contributions() {
             ) : contributions.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 <Euro className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p>Geen contributies voor {selectedYear}</p>
+                <p>Geen lidgeld voor {selectedYear}</p>
                 <Button variant="outline" className="mt-4" onClick={handleGenerateForAll}>
-                  Genereer contributies
+                  Genereer lidgeld
                 </Button>
               </div>
             ) : (

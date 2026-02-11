@@ -4,8 +4,6 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -22,29 +20,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { useContributions, useCreateContribution, useUpdateContribution, useContributionAmount } from "@/hooks/useContributions";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useContributions, useCreateContribution, useUpdateContribution, useDeleteContribution, useContributionAmount } from "@/hooks/useContributions";
 import { useMembers } from "@/hooks/useMembers";
-import { Euro, Plus, Check, Clock, X, Users, Loader2 } from "lucide-react";
+import { Euro, Check, Clock, X, Users, Loader2, Trash2, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Contributions() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSendingInvites, setIsSendingInvites] = useState(false);
 
   const { data: contributions = [], isLoading } = useContributions(selectedYear);
   const { data: members = [] } = useMembers();
   const { data: defaultAmount = 25 } = useContributionAmount();
   const createContribution = useCreateContribution();
   const updateContribution = useUpdateContribution();
+  const deleteContribution = useDeleteContribution();
 
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
@@ -79,11 +83,45 @@ export default function Contributions() {
     toast.success(`${newMembers.length} lidgelden aangemaakt`);
   };
 
-  const handleMarkPaid = async (id: string) => {
+  const handleMarkPaid = async (id: string, memberId: string, amount: number) => {
     await updateContribution.mutateAsync({
       id,
       data: { status: "paid", paid_at: new Date().toISOString() },
     });
+    // Also create income record
+    await supabase.from("income").insert({
+      description: `Lidgeld ${selectedYear}`,
+      amount,
+      date: new Date().toISOString().split("T")[0],
+      type: "lidgeld",
+      member_id: memberId,
+      notes: "Handmatig gemarkeerd als betaald",
+    });
+  };
+
+  const handleSendInvites = async () => {
+    const pendingCount = contributions.filter(c => c.status === "pending").length;
+    if (pendingCount === 0) {
+      toast.info("Geen openstaande lidgelden om uitnodigingen voor te sturen");
+      return;
+    }
+
+    setIsSendingInvites(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-contribution-invites", {
+        body: { year: selectedYear },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`${data.sent} uitnodiging(en) verstuurd`);
+      if (data.failed > 0) {
+        toast.warning(`${data.failed} uitnodiging(en) mislukt`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Fout bij versturen uitnodigingen");
+    } finally {
+      setIsSendingInvites(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -120,6 +158,10 @@ export default function Contributions() {
               <Button variant="outline" onClick={handleGenerateForAll} disabled={createContribution.isPending}>
                 {createContribution.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Users className="h-4 w-4 mr-2" />}
                 Genereer voor alle leden
+              </Button>
+              <Button variant="outline" onClick={handleSendInvites} disabled={isSendingInvites || stats.pending === 0}>
+                {isSendingInvites ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+                Stuur betaaluitnodigingen ({stats.pending})
               </Button>
             </div>
           }
@@ -201,16 +243,42 @@ export default function Contributions() {
                           : "-"}
                       </TableCell>
                       <TableCell className="text-right">
-                        {c.status === "pending" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleMarkPaid(c.id)}
-                          >
-                            <Check className="h-3 w-3 mr-1" />
-                            Markeer betaald
-                          </Button>
-                        )}
+                        <div className="flex items-center justify-end gap-2">
+                          {c.status === "pending" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleMarkPaid(c.id, c.member_id, Number(c.amount))}
+                            >
+                              <Check className="h-3 w-3 mr-1" />
+                              Betaald
+                            </Button>
+                          )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Lidgeld verwijderen?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Weet je zeker dat je het lidgeld van {c.member ? `${c.member.first_name} ${c.member.last_name}` : "dit lid"} voor {selectedYear} wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteContribution.mutate(c.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Verwijderen
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

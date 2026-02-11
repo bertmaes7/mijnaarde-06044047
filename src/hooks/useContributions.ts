@@ -106,6 +106,27 @@ export function useUpdateContribution() {
   });
 }
 
+export function useDeleteContribution() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("contributions")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contributions"] });
+      toast.success("Lidgeld verwijderd");
+    },
+    onError: () => {
+      toast.error("Fout bij verwijderen lidgeld");
+    },
+  });
+}
+
 export function useContributionAmount() {
   return useQuery({
     queryKey: ["contribution-amount"],

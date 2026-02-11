@@ -65,10 +65,10 @@ serve(async (req: Request) => {
 
       if (contribution) {
         await supabase.from("income").insert({
-          description: `Contributie ${contribution.contribution_year}`,
+          description: `Lidgeld ${contribution.contribution_year}`,
           amount: contribution.amount,
           date: new Date().toISOString().split("T")[0],
-          type: "membership",
+          type: "lidgeld",
           member_id: contribution.member_id,
           notes: `Mollie betaling: ${paymentId}`,
         });

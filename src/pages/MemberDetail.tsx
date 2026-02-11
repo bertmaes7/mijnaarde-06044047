@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 import { MemberForm } from "@/components/members/MemberForm";
@@ -51,8 +52,23 @@ export default function MemberDetail() {
       setIsDirty(false);
       navigate(`/members/${result.id}`);
     } else if (id) {
+      // Detect if is_active_member changed to true
+      const wasActiveMember = member?.is_active_member ?? false;
+      const isNowActiveMember = data.is_active_member ?? false;
+      
       await updateMember.mutateAsync({ id, data });
       setIsDirty(false);
+
+      // Send onboarding email if member just became active
+      if (!wasActiveMember && isNowActiveMember && member?.email) {
+        try {
+          await supabase.functions.invoke("send-onboarding-email", {
+            body: { memberId: id },
+          });
+        } catch (err) {
+          console.error("Failed to send onboarding email:", err);
+        }
+      }
     }
   };
 

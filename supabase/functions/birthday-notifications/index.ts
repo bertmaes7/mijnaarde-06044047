@@ -85,30 +85,8 @@ serve(async (req: Request) => {
     // Sort by days_until
     upcomingBirthdays.sort((a, b) => a.days_until - b.days_until);
 
-    // Get admin emails
-    const { data: adminRoles } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "admin");
-
-    if (!adminRoles || adminRoles.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: "Geen admins gevonden", count: upcomingBirthdays.length }), {
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    // Get admin member emails
-    const { data: adminMembers } = await supabase
-      .from("members")
-      .select("email")
-      .in("auth_user_id", adminRoles.map(r => r.user_id))
-      .not("email", "is", null);
-
-    if (!adminMembers || adminMembers.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: "Geen admin e-mails gevonden", count: upcomingBirthdays.length }), {
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
+    // Send only to designated recipient
+    const adminMembers = [{ email: "grace@mijnaarde.com" }];
 
     // Build email content
     const birthdayRows = upcomingBirthdays.map(b => {

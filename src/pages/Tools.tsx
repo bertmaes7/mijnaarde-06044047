@@ -53,8 +53,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useMembers, useDuplicateEmails, useBulkUpdateMembers } from "@/hooks/useMembers";
+import { useCompanies } from "@/hooks/useCompanies";
 import { useTags, useBulkAddTag, useBulkRemoveTag, useCreateTag } from "@/hooks/useTags";
-import { Wrench, AlertTriangle, Users, RefreshCw, Loader2, Shield, Key, Copy, Check, Tag, Plus, Search, X, ChevronDown } from "lucide-react";
+import { Wrench, AlertTriangle, Users, RefreshCw, Loader2, Shield, Key, Copy, Check, Tag, Plus, Search, X, ChevronDown, Filter } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,6 +126,7 @@ function useResetAdminPassword() {
 
 export default function Tools() {
   const { data: members = [], isLoading: membersLoading } = useMembers();
+  const { data: companies = [] } = useCompanies();
   const { data: duplicates = [], isLoading: duplicatesLoading, refetch: refetchDuplicates } = useDuplicateEmails();
   const { data: adminMembers = [], isLoading: adminsLoading, refetch: refetchAdmins } = useAdminMembers();
   const { data: allTags = [], isLoading: tagsLoading } = useTags();
@@ -145,6 +147,10 @@ export default function Tools() {
   const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
   const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
   const [tagInputValue, setTagInputValue] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("all");
+  const [filterCompanyId, setFilterCompanyId] = useState("all");
+  const [filterCity, setFilterCity] = useState("all");
+  const [filterMembershipType, setFilterMembershipType] = useState("all");
   
   // Tag bulk action state
   const [tagActionType, setTagActionType] = useState<"add" | "remove">("add");
@@ -160,7 +166,22 @@ export default function Tools() {
   const [confirmResetMemberId, setConfirmResetMemberId] = useState<string | null>(null);
   const [confirmResetName, setConfirmResetName] = useState<string>("");
 
-  // Filter members based on search and tags
+  // Derive unique cities from members
+  const cities = useMemo(() => {
+    const citySet = new Set<string>();
+    members.forEach(m => { if (m.city) citySet.add(m.city); });
+    return Array.from(citySet).sort();
+  }, [members]);
+
+  const activeFilterCount = [
+    filterStatus !== "all",
+    filterCompanyId !== "all",
+    filterCity !== "all",
+    filterMembershipType !== "all",
+    filterTagIds.length > 0,
+  ].filter(Boolean).length;
+
+  // Filter members based on search, tags, and member filters
   const filteredMembers = useMemo(() => {
     return members.filter(member => {
       // Search filter
@@ -170,6 +191,29 @@ export default function Tools() {
         const email = member.email?.toLowerCase() || "";
         if (!fullName.includes(query) && !email.includes(query)) {
           return false;
+        }
+      }
+
+      // Status filter
+      if (filterStatus === "active" && !member.is_active) return false;
+      if (filterStatus === "inactive" && member.is_active) return false;
+
+      // Company filter
+      if (filterCompanyId === "none" && member.company_id) return false;
+      if (filterCompanyId !== "all" && filterCompanyId !== "none" && member.company_id !== filterCompanyId) return false;
+
+      // City filter
+      if (filterCity !== "all" && member.city !== filterCity) return false;
+
+      // Membership type filter
+      if (filterMembershipType !== "all") {
+        switch (filterMembershipType) {
+          case "board": if (!member.is_board_member) return false; break;
+          case "active": if (!member.is_active_member) return false; break;
+          case "ambassador": if (!member.is_ambassador) return false; break;
+          case "donor": if (!member.is_donor) return false; break;
+          case "council": if (!member.is_council_member) return false; break;
+          case "mail": if (!member.receives_mail) return false; break;
         }
       }
       
@@ -182,7 +226,7 @@ export default function Tools() {
       
       return true;
     });
-  }, [members, searchQuery, filterTagIds]);
+  }, [members, searchQuery, filterTagIds, filterStatus, filterCompanyId, filterCity, filterMembershipType]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -414,87 +458,157 @@ export default function Tools() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Search and Filter */}
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Zoek op naam of e-mail..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filters</span>
+                {activeFilterCount > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {activeFilterCount} actief
+                  </Badge>
+                )}
               </div>
-              
-              {/* Tag Filter */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {filterTagIds.map((tagId) => {
-                  const tag = allTags.find(t => t.id === tagId);
-                  return tag ? (
-                    <Badge key={tagId} variant="secondary" className="gap-1 pr-1">
-                      {tag.name}
-                      <button
-                        type="button"
-                        onClick={() => setFilterTagIds(filterTagIds.filter(id => id !== tagId))}
-                        className="ml-1 hover:bg-muted rounded p-0.5"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ) : null;
-                })}
-                <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 gap-1">
-                      {tagsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Tag className="h-3 w-3" />}
-                      Filter op tags
-                      <ChevronDown className="h-3 w-3 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-0" align="start">
-                    <Command>
-                      <CommandInput
-                        placeholder="Zoek tag..."
-                        value={tagInputValue}
-                        onValueChange={setTagInputValue}
-                      />
-                      <CommandList>
-                        <CommandEmpty>Geen tags gevonden</CommandEmpty>
-                        <CommandGroup>
-                          {allTags
-                            .filter(t => !filterTagIds.includes(t.id))
-                            .filter(t => t.name.toLowerCase().includes(tagInputValue.toLowerCase()))
-                            .map((tag) => (
-                              <CommandItem
-                                key={tag.id}
-                                value={tag.name}
-                                onSelect={() => {
-                                  setFilterTagIds([...filterTagIds, tag.id]);
-                                  setTagPopoverOpen(false);
-                                  setTagInputValue("");
-                                }}
-                              >
-                                <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
-                                {tag.name}
-                              </CommandItem>
-                            ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                
-                {(searchQuery || filterTagIds.length > 0) && (
+              <div className="flex flex-wrap gap-3 items-center">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Zoek op naam of e-mail..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                <Select value={filterStatus} onValueChange={(v: "all" | "active" | "inactive") => setFilterStatus(v)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle statussen</SelectItem>
+                    <SelectItem value="active">Actief</SelectItem>
+                    <SelectItem value="inactive">Inactief</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={filterCompanyId} onValueChange={setFilterCompanyId}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Bedrijf" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle bedrijven</SelectItem>
+                    <SelectItem value="none">Geen bedrijf</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={filterCity} onValueChange={setFilterCity}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Stad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle steden</SelectItem>
+                    {cities.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={filterMembershipType} onValueChange={setFilterMembershipType}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Lidmaatschap" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle types</SelectItem>
+                    <SelectItem value="board">Bestuur</SelectItem>
+                    <SelectItem value="active">Actief lid</SelectItem>
+                    <SelectItem value="ambassador">Ambassadeur</SelectItem>
+                    <SelectItem value="donor">Donateur</SelectItem>
+                    <SelectItem value="council">Raad van wijzen</SelectItem>
+                    <SelectItem value="mail">Ontvangt mail</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Tag Filter */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {filterTagIds.map((tagId) => {
+                    const tag = allTags.find(t => t.id === tagId);
+                    return tag ? (
+                      <Badge key={tagId} variant="secondary" className="gap-1 pr-1">
+                        {tag.name}
+                        <button
+                          type="button"
+                          onClick={() => setFilterTagIds(filterTagIds.filter(id => id !== tagId))}
+                          className="ml-1 hover:bg-muted rounded p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ) : null;
+                  })}
+                  <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 gap-1">
+                        {tagsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Tag className="h-3 w-3" />}
+                        Filter op tags
+                        <ChevronDown className="h-3 w-3 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-0" align="start">
+                      <Command>
+                        <CommandInput
+                          placeholder="Zoek tag..."
+                          value={tagInputValue}
+                          onValueChange={setTagInputValue}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Geen tags gevonden</CommandEmpty>
+                          <CommandGroup>
+                            {allTags
+                              .filter(t => !filterTagIds.includes(t.id))
+                              .filter(t => t.name.toLowerCase().includes(tagInputValue.toLowerCase()))
+                              .map((tag) => (
+                                <CommandItem
+                                  key={tag.id}
+                                  value={tag.name}
+                                  onSelect={() => {
+                                    setFilterTagIds([...filterTagIds, tag.id]);
+                                    setTagPopoverOpen(false);
+                                    setTagInputValue("");
+                                  }}
+                                >
+                                  <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
+                                  {tag.name}
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {(searchQuery || activeFilterCount > 0) && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
                       setSearchQuery("");
                       setFilterTagIds([]);
+                      setFilterStatus("all");
+                      setFilterCompanyId("all");
+                      setFilterCity("all");
+                      setFilterMembershipType("all");
                     }}
                     className="h-8 gap-1 text-muted-foreground"
                   >
                     <X className="h-3 w-3" />
-                    Wis filters
+                    Reset
                   </Button>
                 )}
               </div>

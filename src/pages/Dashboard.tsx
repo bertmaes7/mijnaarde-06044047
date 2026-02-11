@@ -14,7 +14,7 @@ export default function Dashboard() {
   const { data: expenses = [] } = useExpenses();
 
   // Calculate current quarter income and current balance
-  const { quarterIncome, currentBalance, memberGrowthPercent } = useMemo(() => {
+  const { quarterIncome, currentBalance, memberGrowthPercent, newMembersCount } = useMemo(() => {
     const now = new Date();
     const currentQuarter = Math.floor(now.getMonth() / 3);
     const currentYear = now.getFullYear();
@@ -32,32 +32,22 @@ export default function Dashboard() {
     const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
     const balance = totalIncome - totalExpenses;
 
-    const currentMonth = now.getMonth();
-    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const membersThisMonth = members.filter((m) => {
+    const newMembersCount = members.filter((m) => {
       const dateStr = m.member_since || m.created_at;
       if (!dateStr) return false;
       const date = new Date(dateStr);
-      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+      return date >= thirtyDaysAgo && date <= now;
     }).length;
 
-    const membersLastMonth = members.filter((m) => {
-      const dateStr = m.member_since || m.created_at;
-      if (!dateStr) return false;
-      const date = new Date(dateStr);
-      return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
-    }).length;
+    const totalMembers = members.length;
+    const growthPercent = totalMembers > 0
+      ? Math.round((newMembersCount / totalMembers) * 10000) / 100
+      : 0;
 
-    let growthPercent = 0;
-    if (membersLastMonth > 0) {
-      growthPercent = Math.round(((membersThisMonth - membersLastMonth) / membersLastMonth) * 100);
-    } else if (membersThisMonth > 0) {
-      growthPercent = 100;
-    }
-
-    return { quarterIncome: quarterTotal, currentBalance: balance, memberGrowthPercent: growthPercent };
+    return { quarterIncome: quarterTotal, currentBalance: balance, memberGrowthPercent: growthPercent, newMembersCount };
   }, [income, expenses, members]);
 
   // Upcoming birthdays
@@ -113,7 +103,7 @@ export default function Dashboard() {
     { title: "Totaal Leden", value: members.length, icon: Users, description: "Geregistreerde leden" },
     { title: "Inkomsten dit kwartaal", value: formatCurrency(quarterIncome), icon: Euro, description: "Huidige kwartaal" },
     { title: "Huidig Saldo", value: formatCurrency(currentBalance), icon: Wallet, description: "Inkomsten - Uitgaven" },
-    { title: "Nieuwe leden", value: memberGrowthPercent >= 0 ? `+${memberGrowthPercent}%` : `${memberGrowthPercent}%`, icon: TrendingUp, description: "vs. vorige maand" },
+    { title: "Nieuwe leden", value: `+${newMembersCount} (${memberGrowthPercent >= 0 ? "+" : ""}${memberGrowthPercent}%)`, icon: TrendingUp, description: "Laatste 30 dagen" },
   ];
 
   // Recent activities

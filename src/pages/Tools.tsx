@@ -61,6 +61,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const BULK_UPDATE_FIELDS = [
+  // Boolean fields
   { value: "receives_mail", label: "Ontvangt mail", type: "boolean" },
   { value: "is_active", label: "Actief", type: "boolean" },
   { value: "is_active_member", label: "Actief lid", type: "boolean" },
@@ -68,6 +69,20 @@ const BULK_UPDATE_FIELDS = [
   { value: "is_ambassador", label: "Ambassadeur", type: "boolean" },
   { value: "is_donor", label: "Donateur", type: "boolean" },
   { value: "is_council_member", label: "Raadslid", type: "boolean" },
+  { value: "is_admin", label: "Beheerder", type: "boolean" },
+  // Text fields
+  { value: "city", label: "Stad", type: "text" },
+  { value: "country", label: "Land", type: "text" },
+  { value: "postal_code", label: "Postcode", type: "text" },
+  { value: "address", label: "Adres", type: "text" },
+  { value: "phone", label: "Telefoon", type: "text" },
+  { value: "mobile", label: "Mobiel", type: "text" },
+  { value: "notes", label: "Notities", type: "text" },
+  { value: "bank_account", label: "Bankrekening", type: "text" },
+  { value: "personal_url", label: "Persoonlijke URL", type: "text" },
+  // Date fields
+  { value: "member_since", label: "Lid sinds", type: "date" },
+  { value: "date_of_birth", label: "Geboortedatum", type: "date" },
 ] as const;
 
 // Hook to get admin members
@@ -204,11 +219,19 @@ export default function Tools() {
   };
 
   const confirmBulkUpdate = async () => {
-    const value = selectedValue === "true";
+    const fieldDef = BULK_UPDATE_FIELDS.find(f => f.value === selectedField);
+    let parsedValue: boolean | string | null = selectedValue;
+    
+    if (fieldDef?.type === "boolean") {
+      parsedValue = selectedValue === "true";
+    } else if (selectedValue === "") {
+      parsedValue = null;
+    }
+    
     await bulkUpdate.mutateAsync({
       memberIds: Array.from(selectedMemberIds),
       field: selectedField,
-      value,
+      value: parsedValue,
     });
     setShowConfirmDialog(false);
     setSelectedMemberIds(new Set());
@@ -477,11 +500,11 @@ export default function Tools() {
               </div>
             </div>
             
-            {/* Boolean Field Controls */}
+            {/* Field Update Controls */}
             <div className="flex flex-wrap gap-4 items-end border-t pt-4">
               <div className="space-y-2">
                 <Label>Veld</Label>
-                <Select value={selectedField} onValueChange={setSelectedField}>
+                <Select value={selectedField} onValueChange={(v) => { setSelectedField(v); setSelectedValue(""); }}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Selecteer veld" />
                   </SelectTrigger>
@@ -497,15 +520,41 @@ export default function Tools() {
 
               <div className="space-y-2">
                 <Label>Nieuwe waarde</Label>
-                <Select value={selectedValue} onValueChange={setSelectedValue}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Waarde" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">Ja</SelectItem>
-                    <SelectItem value="false">Nee</SelectItem>
-                  </SelectContent>
-                </Select>
+                {(() => {
+                  const fieldDef = BULK_UPDATE_FIELDS.find(f => f.value === selectedField);
+                  if (fieldDef?.type === "boolean") {
+                    return (
+                      <Select value={selectedValue} onValueChange={setSelectedValue}>
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Waarde" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true">Ja</SelectItem>
+                          <SelectItem value="false">Nee</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    );
+                  } else if (fieldDef?.type === "date") {
+                    return (
+                      <Input
+                        type="date"
+                        value={selectedValue}
+                        onChange={(e) => setSelectedValue(e.target.value)}
+                        className="w-48"
+                      />
+                    );
+                  } else {
+                    return (
+                      <Input
+                        type="text"
+                        value={selectedValue}
+                        onChange={(e) => setSelectedValue(e.target.value)}
+                        placeholder="Typ waarde..."
+                        className="w-48"
+                      />
+                    );
+                  }
+                })()}
               </div>
 
               <Button
@@ -808,7 +857,11 @@ export default function Tools() {
           <AlertDialogHeader>
             <AlertDialogTitle>Bulk bijwerken bevestigen</AlertDialogTitle>
             <AlertDialogDescription>
-              Je staat op het punt om het veld "{selectedFieldLabel}" op "{selectedValue === "true" ? "Ja" : "Nee"}" te zetten voor {selectedMemberIds.size} leden.
+              Je staat op het punt om het veld "{selectedFieldLabel}" op "{(() => {
+                const fieldDef = BULK_UPDATE_FIELDS.find(f => f.value === selectedField);
+                if (fieldDef?.type === "boolean") return selectedValue === "true" ? "Ja" : "Nee";
+                return selectedValue;
+              })()}" te zetten voor {selectedMemberIds.size} leden.
               <br /><br />
               Deze actie kan niet ongedaan worden gemaakt.
             </AlertDialogDescription>

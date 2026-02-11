@@ -158,11 +158,11 @@ export default function Tools() {
         }
       }
       
-      // Tag filter - member must have ALL selected tags
+      // Tag filter - member must have ANY selected tag (OR logic)
       if (filterTagIds.length > 0) {
         const memberTagIds = member.member_tags?.map(mt => mt.tag_id) || [];
-        const hasAllTags = filterTagIds.every(tagId => memberTagIds.includes(tagId));
-        if (!hasAllTags) return false;
+        const hasAnyTag = filterTagIds.some(tagId => memberTagIds.includes(tagId));
+        if (!hasAnyTag) return false;
       }
       
       return true;

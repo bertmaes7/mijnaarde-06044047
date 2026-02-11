@@ -137,14 +137,30 @@ export default function Auth() {
       return;
     }
 
-    const { error } = await signInWithMagicLink(loginEmail);
-    setIsLoading(false);
+    // Use custom branded magic link via edge function
+    try {
+      const { data, error } = await supabase.functions.invoke("send-magic-link", {
+        body: { 
+          email: loginEmail,
+          redirectTo: `${window.location.origin}/auth`,
+        },
+      });
 
-    if (error) {
-      toast.error(error.message);
-    } else {
-      setMagicLinkSent(true);
-      toast.success("Magic link verzonden! Check je e-mail.");
+      setIsLoading(false);
+
+      if (error) {
+        toast.error("Er ging iets mis bij het versturen van de magic link.");
+      } else if (data?.error === "rate_limit") {
+        toast.error("Even geduld, probeer het over 60 seconden opnieuw.");
+      } else if (data?.error) {
+        toast.error(data.message || "Er ging iets mis.");
+      } else {
+        setMagicLinkSent(true);
+        toast.success("Magic link verzonden! Check je e-mail.");
+      }
+    } catch (err) {
+      setIsLoading(false);
+      toast.error("Er ging iets mis bij het versturen van de magic link.");
     }
   };
 

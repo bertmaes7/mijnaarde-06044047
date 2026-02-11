@@ -121,7 +121,7 @@ serve(async (req: Request) => {
       .eq("key", "org_name")
       .maybeSingle();
 
-    const portalUrl = "https://mijnaarde.lovable.app/member";
+    const baseUrl = "https://mijnaarde.lovable.app/donate";
     const logoUrl = logoAsset?.value || "";
     const orgDisplayName = orgName?.value || "Mijn Aarde vzw";
 
@@ -137,6 +137,8 @@ serve(async (req: Request) => {
         await new Promise(resolve => setTimeout(resolve, 600));
       }
 
+      const donateUrl = `${baseUrl}?email=${encodeURIComponent(member.email)}&amount=${Number(c.amount).toFixed(2)}&description=${encodeURIComponent(`Lidgeld ${year}`)}`;
+
       const html = `
 <!DOCTYPE html>
 <html>
@@ -146,9 +148,9 @@ serve(async (req: Request) => {
   <p>Beste ${member.first_name},</p>
   <p>We nodigen je uit om je lidgeld voor ${year} te betalen.</p>
   <p><strong>Bedrag:</strong> €${Number(c.amount).toFixed(2)}</p>
-  <p>Je kunt eenvoudig online betalen via het ledenportaal:</p>
+  <p>Je kunt eenvoudig online betalen via onderstaande link:</p>
   <div style="text-align: center; margin: 32px 0;">
-    <a href="${portalUrl}" style="background-color: #2d5016; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Betaal nu</a>
+    <a href="${donateUrl}" style="background-color: #2d5016; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Betaal nu</a>
   </div>
   <p>Hartelijk dank voor je steun!</p>
   <p>Met vriendelijke groet,<br/>${orgDisplayName}</p>

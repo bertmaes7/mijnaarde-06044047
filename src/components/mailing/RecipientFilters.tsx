@@ -313,10 +313,10 @@ export function applyRecipientFilters<T extends {
       }
     }
 
-    // Tag filter - member must have ALL selected tags
+    // Tag filter - member must have ANY of the selected tags (OR logic)
     if (filters.tagIds.length > 0) {
       const memberTagIds = member.member_tags?.map(mt => mt.tag_id) || [];
-      if (!filters.tagIds.every(tagId => memberTagIds.includes(tagId))) return false;
+      if (!filters.tagIds.some(tagId => memberTagIds.includes(tagId))) return false;
     }
 
     return true;

@@ -37,10 +37,10 @@ export function useAuth() {
 
       const roles = (rolesData || []).map((r) => r.role as AppRole);
 
-      // Fetch member data including password_change_required
+      // Fetch member data including password_change_required and is_active_member
       const { data: memberData } = await supabase
         .from("members")
-        .select("id, password_change_required, is_active")
+        .select("id, password_change_required, is_active_member")
         .eq("auth_user_id", userId)
         .maybeSingle();
 
@@ -50,7 +50,7 @@ export function useAuth() {
         isAdmin: roles.includes("admin"),
         memberId: memberData?.id || null,
         passwordChangeRequired: memberData?.password_change_required ?? false,
-        isMemberActive: memberData?.is_active ?? false,
+        isMemberActive: memberData?.is_active_member ?? false,
         isLoading: false,
       }));
     } catch (error) {

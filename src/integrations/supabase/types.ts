@@ -143,6 +143,53 @@ export type Database = {
         }
         Relationships: []
       }
+      contributions: {
+        Row: {
+          amount: number
+          contribution_year: number
+          created_at: string
+          id: string
+          member_id: string
+          mollie_payment_id: string | null
+          notes: string | null
+          paid_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          contribution_year: number
+          created_at?: string
+          id?: string
+          member_id: string
+          mollie_payment_id?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          contribution_year?: number
+          created_at?: string
+          id?: string
+          member_id?: string
+          mollie_payment_id?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contributions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       donations: {
         Row: {
           amount: number

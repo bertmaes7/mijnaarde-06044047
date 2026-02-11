@@ -5,11 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Leaf, LogOut, User, Calendar, CreditCard, TrendingUp, TrendingDown, Save, Loader2 } from "lucide-react";
+import { Leaf, LogOut, User, Calendar, CreditCard, TrendingUp, TrendingDown, Save, Loader2, Globe, Camera } from "lucide-react";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
+import { ProfilePhotoUpload } from "@/components/members/ProfilePhotoUpload";
+import { MemberAvatar } from "@/components/members/MemberAvatar";
+import { useMyContributions } from "@/hooks/useContributions";
+import { useSignedUrl } from "@/hooks/useSignedUrl";
 
 export default function MemberPortal() {
   const { user, memberId, signOut, isAdmin } = useAuthContext();
@@ -19,6 +23,8 @@ export default function MemberPortal() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editedMember, setEditedMember] = useState<Partial<Member>>({});
+  const [isPayingContribution, setIsPayingContribution] = useState<string | null>(null);
+  const { data: contributions = [] } = useMyContributions();
 
   useEffect(() => {
     if (memberId) {
@@ -31,7 +37,6 @@ export default function MemberPortal() {
     
     setIsLoading(true);
     try {
-      // Fetch member data
       const { data: memberData, error: memberError } = await supabase
         .from("members")
         .select("*, company:companies(*)")
@@ -42,7 +47,6 @@ export default function MemberPortal() {
       setMember(memberData as Member);
       setEditedMember(memberData);
 
-      // Fetch income
       const { data: incomeData } = await supabase
         .from("income")
         .select("*")
@@ -51,7 +55,6 @@ export default function MemberPortal() {
 
       setIncome((incomeData || []) as Income[]);
 
-      // Fetch expenses
       const { data: expenseData } = await supabase
         .from("expenses")
         .select("*")
@@ -85,6 +88,12 @@ export default function MemberPortal() {
           country: editedMember.country,
           personal_url: editedMember.personal_url,
           notes: editedMember.notes,
+          date_of_birth: editedMember.date_of_birth || null,
+          facebook_url: editedMember.facebook_url || null,
+          linkedin_url: editedMember.linkedin_url || null,
+          instagram_url: editedMember.instagram_url || null,
+          tiktok_url: editedMember.tiktok_url || null,
+          profile_photo_url: editedMember.profile_photo_url || null,
         })
         .eq("id", memberId);
 
@@ -96,6 +105,29 @@ export default function MemberPortal() {
       toast.error("Fout bij opslaan");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePhotoChange = (url: string | null) => {
+    setEditedMember({ ...editedMember, profile_photo_url: url });
+  };
+
+  const handlePayContribution = async (contributionId: string) => {
+    setIsPayingContribution(contributionId);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-contribution-payment", {
+        body: { contributionId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (error) {
+      console.error("Error creating payment:", error);
+      toast.error(error instanceof Error ? error.message : "Fout bij het starten van de betaling");
+    } finally {
+      setIsPayingContribution(null);
     }
   };
 
@@ -156,9 +188,7 @@ export default function MemberPortal() {
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="card-elevated">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Lid Sinds
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Lid Sinds</CardTitle>
               <Calendar className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
@@ -172,163 +202,205 @@ export default function MemberPortal() {
 
           <Card className="card-elevated">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Status
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Status</CardTitle>
               <User className="h-5 w-5 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {member?.is_active ? "Actief" : "Inactief"}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {member?.is_board_member && "Bestuurslid • "}
-                {member?.is_ambassador && "Ambassadeur • "}
-                {member?.is_donor && "Donateur"}
-              </p>
             </CardContent>
           </Card>
 
           <Card className="card-elevated">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Bijdragen
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Bijdragen</CardTitle>
               <TrendingUp className="h-5 w-5 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-success">
-                €{totalIncome.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {income.length} transactie(s)
-              </p>
+              <div className="text-2xl font-bold text-success">€{totalIncome.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">{income.length} transactie(s)</p>
             </CardContent>
           </Card>
 
           <Card className="card-elevated">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Declaraties
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Declaraties</CardTitle>
               <TrendingDown className="h-5 w-5 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-accent">
-                €{totalExpenses.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {expenses.length} transactie(s)
-              </p>
+              <div className="text-2xl font-bold text-accent">€{totalExpenses.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">{expenses.length} transactie(s)</p>
             </CardContent>
           </Card>
         </div>
 
+        {/* Open contributions */}
+        {contributions.filter(c => c.status === "pending").length > 0 && (
+          <Card className="card-elevated mb-8 border-warning/30">
+            <CardHeader>
+              <CardTitle className="font-display flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-warning" />
+                Openstaande Contributies
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {contributions.filter(c => c.status === "pending").map(c => (
+                <div key={c.id} className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="font-medium">Contributie {c.contribution_year}</p>
+                    <p className="text-sm text-muted-foreground">€{Number(c.amount).toFixed(2)}</p>
+                  </div>
+                  <Button
+                    onClick={() => handlePayContribution(c.id)}
+                    disabled={isPayingContribution === c.id}
+                  >
+                    {isPayingContribution === c.id ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CreditCard className="h-4 w-4 mr-2" />
+                    )}
+                    Nu betalen
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Profile Form */}
+          {/* Profile Photo + Form */}
           <Card className="card-elevated">
             <CardHeader>
               <CardTitle className="font-display">Mijn Gegevens</CardTitle>
               <CardDescription>Bewerk je persoonlijke informatie</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              {/* Photo */}
+              <div className="flex flex-col items-center gap-3">
+                <MemberAvatar
+                  firstName={editedMember.first_name || "N"}
+                  lastName={editedMember.last_name || "N"}
+                  photoUrl={editedMember.profile_photo_url}
+                  size="lg"
+                />
+                <ProfilePhotoUpload
+                  currentUrl={editedMember.profile_photo_url || null}
+                  onUpload={handlePhotoChange}
+                  memberId={memberId || undefined}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">Voornaam</Label>
+                  <Label>Voornaam</Label>
                   <Input
-                    id="firstName"
                     value={editedMember.first_name || ""}
-                    onChange={(e) =>
-                      setEditedMember({ ...editedMember, first_name: e.target.value })
-                    }
+                    onChange={(e) => setEditedMember({ ...editedMember, first_name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName">Achternaam</Label>
+                  <Label>Achternaam</Label>
                   <Input
-                    id="lastName"
                     value={editedMember.last_name || ""}
-                    onChange={(e) =>
-                      setEditedMember({ ...editedMember, last_name: e.target.value })
-                    }
+                    onChange={(e) => setEditedMember({ ...editedMember, last_name: e.target.value })}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">E-mailadres</Label>
-                <Input id="email" value={member?.email || ""} disabled />
-                <p className="text-xs text-muted-foreground">
-                  E-mailadres kan niet worden gewijzigd
-                </p>
+                <Label>E-mailadres</Label>
+                <Input value={member?.email || ""} disabled />
+                <p className="text-xs text-muted-foreground">E-mailadres kan niet worden gewijzigd</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Telefoon</Label>
+                  <Label>Telefoon</Label>
                   <Input
-                    id="phone"
                     value={editedMember.phone || ""}
-                    onChange={(e) =>
-                      setEditedMember({ ...editedMember, phone: e.target.value })
-                    }
+                    onChange={(e) => setEditedMember({ ...editedMember, phone: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="mobile">Mobiel</Label>
+                  <Label>Mobiel</Label>
                   <Input
-                    id="mobile"
                     value={editedMember.mobile || ""}
-                    onChange={(e) =>
-                      setEditedMember({ ...editedMember, mobile: e.target.value })
-                    }
+                    onChange={(e) => setEditedMember({ ...editedMember, mobile: e.target.value })}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="address">Adres</Label>
+                <Label>Adres</Label>
                 <Input
-                  id="address"
                   value={editedMember.address || ""}
-                  onChange={(e) =>
-                    setEditedMember({ ...editedMember, address: e.target.value })
-                  }
+                  onChange={(e) => setEditedMember({ ...editedMember, address: e.target.value })}
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="postalCode">Postcode</Label>
+                  <Label>Postcode</Label>
                   <Input
-                    id="postalCode"
                     value={editedMember.postal_code || ""}
-                    onChange={(e) =>
-                      setEditedMember({ ...editedMember, postal_code: e.target.value })
-                    }
+                    onChange={(e) => setEditedMember({ ...editedMember, postal_code: e.target.value })}
                   />
                 </div>
                 <div className="col-span-2 space-y-2">
-                  <Label htmlFor="city">Plaats</Label>
+                  <Label>Plaats</Label>
                   <Input
-                    id="city"
                     value={editedMember.city || ""}
-                    onChange={(e) =>
-                      setEditedMember({ ...editedMember, city: e.target.value })
-                    }
+                    onChange={(e) => setEditedMember({ ...editedMember, city: e.target.value })}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="website">Persoonlijke Website</Label>
+                <Label>Geboortedatum</Label>
                 <Input
-                  id="website"
-                  value={editedMember.personal_url || ""}
-                  onChange={(e) =>
-                    setEditedMember({ ...editedMember, personal_url: e.target.value })
-                  }
+                  type="date"
+                  value={editedMember.date_of_birth || ""}
+                  onChange={(e) => setEditedMember({ ...editedMember, date_of_birth: e.target.value })}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Persoonlijke Website</Label>
+                <Input
+                  value={editedMember.personal_url || ""}
+                  onChange={(e) => setEditedMember({ ...editedMember, personal_url: e.target.value })}
+                />
+              </div>
+
+              {/* Social Media */}
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  Social Media
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    placeholder="Facebook URL"
+                    value={editedMember.facebook_url || ""}
+                    onChange={(e) => setEditedMember({ ...editedMember, facebook_url: e.target.value })}
+                  />
+                  <Input
+                    placeholder="LinkedIn URL"
+                    value={editedMember.linkedin_url || ""}
+                    onChange={(e) => setEditedMember({ ...editedMember, linkedin_url: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Instagram URL"
+                    value={editedMember.instagram_url || ""}
+                    onChange={(e) => setEditedMember({ ...editedMember, instagram_url: e.target.value })}
+                  />
+                  <Input
+                    placeholder="TikTok URL"
+                    value={editedMember.tiktok_url || ""}
+                    onChange={(e) => setEditedMember({ ...editedMember, tiktok_url: e.target.value })}
+                  />
+                </div>
               </div>
 
               <Button onClick={handleSave} disabled={isSaving}>

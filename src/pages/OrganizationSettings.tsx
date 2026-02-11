@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Save, Image, Building2, Users, CreditCard, Calendar, Loader2 } from "lucide-react";
+import { Save, Image, Building2, Users, CreditCard, Calendar, Loader2, Euro } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   useMailingAssets,
@@ -25,6 +25,7 @@ const fieldGroups = {
   ],
   banking: ["org_bank_account_1", "org_bank_account_2"],
   fiscal: ["org_fiscal_year_start", "org_fiscal_year_end"],
+  membership: ["org_contribution_amount"],
 };
 
 export default function OrganizationSettings() {
@@ -50,6 +51,7 @@ export default function OrganizationSettings() {
   const addressAssets = getAssetsByKeys(fieldGroups.address);
   const bankingAssets = getAssetsByKeys(fieldGroups.banking);
   const fiscalAssets = getAssetsByKeys(fieldGroups.fiscal);
+  const membershipAssets = getAssetsByKeys(fieldGroups.membership);
 
   const hasChanges = useMemo(() => Object.keys(editedValues).length > 0, [editedValues]);
 
@@ -251,6 +253,17 @@ export default function OrganizationSettings() {
             </CardHeader>
             <CardContent className="space-y-4">
               {fiscalAssets.map((asset) => renderField(asset, "DD/MM/YYYY"))}
+            </CardContent>
+          </Card>
+
+          {/* Membership / Lidgeld */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{renderCardTitle(<Euro className="h-5 w-5" />, "Lidgeld")}</CardTitle>
+              <CardDescription>Jaarlijks lidgeldbedrag voor actieve leden</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {membershipAssets.map((asset) => renderField(asset, "25.00"))}
             </CardContent>
           </Card>
         </div>

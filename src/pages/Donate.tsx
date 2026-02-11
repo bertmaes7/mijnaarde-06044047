@@ -44,6 +44,7 @@ export default function Donate() {
     if (paramDescription) setDescription(paramDescription);
   }, [searchParams]);
 
+  const isContribution = description !== "Donatie aan Mijn Aarde";
   const presetAmounts = [7, 49, 77, 777];
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -369,29 +370,34 @@ export default function Donate() {
                   </div>
                 </div>
               </div>
-              <CardTitle>Doneer nu</CardTitle>
+              <CardTitle>{isContribution ? description : "Doneer nu"}</CardTitle>
               <CardDescription>
-                Hallo {donorInfo.firstName}, kies een bedrag of voer een eigen bedrag in
+                Hallo {donorInfo.firstName}{isContribution 
+                  ? `, betaal hieronder je ${description.toLowerCase()} van €${parseFloat(amount).toFixed(2)}`
+                  : ", kies een bedrag of voer een eigen bedrag in"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Preset amounts */}
-              <div className="grid grid-cols-4 gap-2">
-                {presetAmounts.map((preset) => (
-                  <Button
-                    key={preset}
-                    variant={amount === String(preset) ? "default" : "outline"}
-                    onClick={() => setAmount(String(preset))}
-                    className="h-12"
-                  >
-                    €{preset}
-                  </Button>
-                ))}
-              </div>
+              {/* Show preset amounts only for regular donations */}
+              {!isContribution && (
+                <div className="grid grid-cols-4 gap-2">
+                  {presetAmounts.map((preset) => (
+                    <Button
+                      key={preset}
+                      variant={amount === String(preset) ? "default" : "outline"}
+                      onClick={() => setAmount(String(preset))}
+                      className="h-12"
+                    >
+                      €{preset}
+                    </Button>
+                  ))}
+                </div>
+              )}
 
-              {/* Custom amount */}
+              {/* Custom amount - hide label for contributions */}
               <div className="space-y-2">
-                <Label htmlFor="amount">Of kies je eigen bedrag</Label>
+                {!isContribution && <Label htmlFor="amount">Of kies je eigen bedrag</Label>}
+                {isContribution && <Label htmlFor="amount">Bedrag</Label>}
                 <div className="relative">
                   <span className="absolute left-3 top-3 text-muted-foreground">€</span>
                   <Input
@@ -418,7 +424,7 @@ export default function Donate() {
                 ) : (
                   <>
                     <Heart className="mr-2 h-5 w-5" />
-                    Doneer {amount && parseFloat(amount) >= 1 ? `€${parseFloat(amount).toFixed(2)}` : ""}
+                    {isContribution ? "Betaal" : "Doneer"} {amount && parseFloat(amount) >= 1 ? `€${parseFloat(amount).toFixed(2)}` : ""}
                   </>
                 )}
               </Button>

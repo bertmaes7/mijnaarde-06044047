@@ -7,7 +7,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Mail, Sparkles } from "lucide-react";
+import { Loader2, Mail, Sparkles, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
 
@@ -16,10 +16,12 @@ const emailSchema = z.string().email("Ongeldig e-mailadres");
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isLoading: authLoading, isAdmin, passwordChangeRequired, signInWithPassword, signInWithMagicLink, signOut } = useAuthContext();
+  const { user, isLoading: authLoading, isAdmin, isMemberActive, passwordChangeRequired, signInWithPassword, signInWithMagicLink, signOut, resetPassword } = useAuthContext();
   
   const [isLoading, setIsLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [resetLinkSent, setResetLinkSent] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -29,13 +31,20 @@ export default function Auth() {
   useEffect(() => {
     if (authLoading || !user) return;
     
+    // Check if member is active
+    if (!isMemberActive) {
+      toast.error("Je account is gedeactiveerd. Neem contact op met een beheerder.");
+      signOut();
+      return;
+    }
+    
     // Check if password change is required first
     if (passwordChangeRequired) {
       navigate("/change-password", { replace: true });
       return;
     }
     
-    // Check admin status only after auth is fully loaded
+    // Route based on role
     if (isAdmin) {
       const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
       if (from) {
@@ -44,11 +53,10 @@ export default function Auth() {
         navigate("/", { replace: true });
       }
     } else {
-      // Non-admins cannot access the app - sign them out
-      toast.error("Alleen beheerders kunnen inloggen");
-      signOut();
+      // Non-admin members go to member portal
+      navigate("/member", { replace: true });
     }
-  }, [user, authLoading, isAdmin, passwordChangeRequired, navigate, location.state, signOut]);
+  }, [user, authLoading, isAdmin, isMemberActive, passwordChangeRequired, navigate, location.state, signOut]);
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +103,28 @@ export default function Auth() {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      emailSchema.parse(loginEmail);
+    } catch {
+      toast.error("Ongeldig e-mailadres");
+      return;
+    }
+
+    setIsLoading(true);
+    const { error } = await resetPassword(loginEmail);
+    setIsLoading(false);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      setResetLinkSent(true);
+      toast.success("Wachtwoord-reset link verzonden!");
+    }
+  };
+
   if (magicLinkSent) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -123,6 +153,90 @@ export default function Auth() {
     );
   }
 
+  if (resetLinkSent) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md card-elevated">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl gradient-earth">
+              <Mail className="h-8 w-8 text-primary-foreground" />
+            </div>
+            <CardTitle className="font-display text-2xl">Check je e-mail</CardTitle>
+            <CardDescription>
+              We hebben een wachtwoord-reset link gestuurd naar <strong>{loginEmail}</strong>. 
+              Klik op de link in de e-mail om je wachtwoord te wijzigen.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => {
+                setResetLinkSent(false);
+                setShowForgotPassword(false);
+              }}
+            >
+              Terug naar inloggen
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (showForgotPassword) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md card-elevated">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4">
+              <OrganizationLogo size="lg" />
+            </div>
+            <CardTitle className="font-display text-2xl">Wachtwoord vergeten</CardTitle>
+            <CardDescription>
+              Vul je e-mailadres in om een wachtwoord-reset link te ontvangen
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">E-mailadres</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="naam@voorbeeld.nl"
+                    className="pl-10"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Verstuur reset link"
+                )}
+              </Button>
+            </form>
+
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => setShowForgotPassword(false)}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Terug naar inloggen
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md card-elevated">
@@ -132,7 +246,7 @@ export default function Auth() {
           </div>
           <CardTitle className="font-display text-2xl">Mijn Aarde</CardTitle>
           <CardDescription>
-            Log in met je beheerdersaccount
+            Log in met je account
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -153,7 +267,17 @@ export default function Auth() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="login-password">Wachtwoord</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="login-password">Wachtwoord</Label>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto p-0 text-xs text-muted-foreground"
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Wachtwoord vergeten?
+                </Button>
+              </div>
               <PasswordInput
                 id="login-password"
                 placeholder="••••••••"

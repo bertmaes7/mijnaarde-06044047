@@ -65,32 +65,13 @@ export function RoleManagement({ memberId, authUserId, isAdmin: initialIsAdmin, 
 
         return data;
       } else {
-        // Just update the is_admin flag
-        const { error: memberError } = await supabase
-          .from("members")
-          .update({ is_admin: shouldBeAdmin })
-          .eq("id", memberId);
+        // Use server-side edge function for role toggling
+        const { data, error } = await supabase.functions.invoke("toggle-admin-role", {
+          body: { memberId, shouldBeAdmin },
+        });
 
-        if (memberError) throw memberError;
-
-        // If member has an auth account, also update user_roles
-        if (authUserId) {
-          if (shouldBeAdmin) {
-            const { error } = await supabase
-              .from("user_roles")
-              .insert({ user_id: authUserId, role: "admin" as const });
-
-            if (error && !error.message.includes("duplicate")) throw error;
-          } else {
-            const { error } = await supabase
-              .from("user_roles")
-              .delete()
-              .eq("user_id", authUserId)
-              .eq("role", "admin");
-
-            if (error) throw error;
-          }
-        }
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
 
         return { success: true, accountCreated: false } as CreateAdminResponse;
       }

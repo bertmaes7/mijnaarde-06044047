@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,15 +22,27 @@ interface DonorInfo {
 }
 
 export default function Donate() {
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [amount, setAmount] = useState<string>("");
+  const [description, setDescription] = useState<string>("Donatie aan Mijn Aarde");
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSavingFriend, setIsSavingFriend] = useState(false);
   const [donorInfo, setDonorInfo] = useState<DonorInfo | null>(null);
+
+  // Pre-fill from URL params (used by contribution invite emails)
+  useEffect(() => {
+    const paramEmail = searchParams.get("email");
+    const paramAmount = searchParams.get("amount");
+    const paramDescription = searchParams.get("description");
+    if (paramEmail) setEmail(paramEmail);
+    if (paramAmount) setAmount(paramAmount);
+    if (paramDescription) setDescription(paramDescription);
+  }, [searchParams]);
 
   const presetAmounts = [7, 49, 77, 777];
 
@@ -141,7 +154,7 @@ export default function Donate() {
       const { data, error } = await supabase.functions.invoke("create-mollie-payment", {
         body: { 
           amount: numericAmount,
-          description: "Donatie aan Mijn Aarde",
+          description,
           email: donorInfo.email,
           firstName: donorInfo.firstName,
           lastName: donorInfo.lastName,

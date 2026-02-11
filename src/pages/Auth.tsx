@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Loader2, Mail, Sparkles, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 import { OrganizationLogo } from "@/components/layout/OrganizationLogo";
+import { supabase } from "@/integrations/supabase/client";
 
 const emailSchema = z.string().email("Ongeldig e-mailadres");
 
@@ -58,6 +59,22 @@ export default function Auth() {
     }
   }, [user, authLoading, isAdmin, isMemberActive, passwordChangeRequired, navigate, location.state, signOut]);
 
+  const checkMemberEmail = async (email: string): Promise<{ exists: boolean; isActive: boolean } | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("check-member-email", {
+        body: { email: email.trim() },
+      });
+      if (error) {
+        console.error("Error checking member email:", error);
+        return null;
+      }
+      return data;
+    } catch (err) {
+      console.error("Error checking member email:", err);
+      return null;
+    }
+  };
+
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -69,6 +86,20 @@ export default function Auth() {
     }
 
     setIsLoading(true);
+
+    // Pre-login check: verify email exists and member is active
+    const memberCheck = await checkMemberEmail(loginEmail);
+    if (memberCheck && !memberCheck.exists) {
+      setIsLoading(false);
+      toast.error("Dit e-mailadres is niet gekoppeld aan een lid.");
+      return;
+    }
+    if (memberCheck && !memberCheck.isActive) {
+      setIsLoading(false);
+      toast.error("Je account is gedeactiveerd. Neem contact op met een beheerder.");
+      return;
+    }
+
     const { error } = await signInWithPassword(loginEmail, loginPassword);
     setIsLoading(false);
 
@@ -92,6 +123,20 @@ export default function Auth() {
     }
 
     setIsLoading(true);
+
+    // Pre-login check: verify email exists and member is active
+    const memberCheck = await checkMemberEmail(loginEmail);
+    if (memberCheck && !memberCheck.exists) {
+      setIsLoading(false);
+      toast.error("Dit e-mailadres is niet gekoppeld aan een lid.");
+      return;
+    }
+    if (memberCheck && !memberCheck.isActive) {
+      setIsLoading(false);
+      toast.error("Je account is gedeactiveerd. Neem contact op met een beheerder.");
+      return;
+    }
+
     const { error } = await signInWithMagicLink(loginEmail);
     setIsLoading(false);
 

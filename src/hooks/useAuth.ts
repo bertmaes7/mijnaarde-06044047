@@ -12,6 +12,7 @@ interface AuthState {
   isAdmin: boolean;
   memberId: string | null;
   passwordChangeRequired: boolean;
+  isMemberActive: boolean;
 }
 
 export function useAuth() {
@@ -23,6 +24,7 @@ export function useAuth() {
     isAdmin: false,
     memberId: null,
     passwordChangeRequired: false,
+    isMemberActive: true,
   });
 
   const fetchUserData = useCallback(async (userId: string) => {
@@ -38,7 +40,7 @@ export function useAuth() {
       // Fetch member data including password_change_required
       const { data: memberData } = await supabase
         .from("members")
-        .select("id, password_change_required")
+        .select("id, password_change_required, is_active")
         .eq("auth_user_id", userId)
         .maybeSingle();
 
@@ -48,6 +50,7 @@ export function useAuth() {
         isAdmin: roles.includes("admin"),
         memberId: memberData?.id || null,
         passwordChangeRequired: memberData?.password_change_required ?? false,
+        isMemberActive: memberData?.is_active ?? false,
         isLoading: false,
       }));
     } catch (error) {
@@ -82,6 +85,7 @@ export function useAuth() {
           isAdmin: false,
           memberId: null,
           passwordChangeRequired: false,
+          isMemberActive: true,
           isLoading: false,
         }));
       }
@@ -170,6 +174,14 @@ export function useAuth() {
     return { error };
   };
 
+  const resetPassword = async (email: string) => {
+    const redirectUrl = `${window.location.origin}/change-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
+    return { error };
+  };
+
   return {
     ...state,
     signInWithPassword,
@@ -177,5 +189,6 @@ export function useAuth() {
     signInWithMagicLinkAndData,
     signUp,
     signOut,
+    resetPassword,
   };
 }

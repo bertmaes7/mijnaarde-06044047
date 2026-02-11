@@ -10,11 +10,13 @@ interface AuthContextType {
   isAdmin: boolean;
   memberId: string | null;
   passwordChangeRequired: boolean;
+  isMemberActive: boolean;
   signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
   signInWithMagicLinkAndData: (email: string, firstName: string, lastName: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
+  resetPassword: (email: string) => Promise<{ error: Error | null }>;
 }
 
 const defaultAuthContext: AuthContextType = {
@@ -25,11 +27,13 @@ const defaultAuthContext: AuthContextType = {
   isAdmin: false,
   memberId: null,
   passwordChangeRequired: false,
+  isMemberActive: true,
   signInWithPassword: async () => ({ error: null }),
   signInWithMagicLink: async () => ({ error: null }),
   signInWithMagicLinkAndData: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => ({ error: null }),
+  resetPassword: async () => ({ error: null }),
 };
 
 const AuthContext = createContext<AuthContextType>(defaultAuthContext);

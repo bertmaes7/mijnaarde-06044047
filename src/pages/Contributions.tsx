@@ -61,6 +61,7 @@ export default function Contributions() {
       paid: paid.length,
       pending: pending.length,
       totalAmount: paid.reduce((sum, c) => sum + Number(c.amount), 0),
+      pendingAmount: pending.reduce((sum, c) => sum + Number(c.amount), 0),
     };
   }, [contributions]);
 
@@ -192,6 +193,7 @@ export default function Contributions() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-warning">{stats.pending}</div>
+              <p className="text-xs text-muted-foreground">€{stats.pendingAmount.toFixed(2)}</p>
             </CardContent>
           </Card>
           <Card className="card-elevated">

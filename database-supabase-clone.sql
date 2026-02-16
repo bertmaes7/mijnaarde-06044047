@@ -1,7 +1,7 @@
 -- =============================================================================
 -- SUPABASE CLONE SCRIPT
 -- Project: Mijn Aarde - Ledenadministratie
--- Generated: 2026-02-07
+-- Generated: 2026-02-16
 -- 
 -- INSTRUCTIES:
 -- 1. Maak een nieuw Supabase-project aan
@@ -41,7 +41,7 @@ CREATE TABLE public.companies (
 
 CREATE TABLE public.members (
     id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    auth_user_id UUID UNIQUE REFERENCES auth.users(id),
+    auth_user_id UUID UNIQUE,
     company_id UUID REFERENCES public.companies(id),
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
@@ -60,6 +60,7 @@ CREATE TABLE public.members (
     instagram_url TEXT,
     tiktok_url TEXT,
     notes TEXT,
+    date_of_birth DATE,
     member_since DATE,
     is_active BOOLEAN DEFAULT true,
     is_active_member BOOLEAN DEFAULT true,
@@ -76,7 +77,7 @@ CREATE TABLE public.members (
 
 CREATE TABLE public.user_roles (
     id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL,
     role public.app_role NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     UNIQUE (user_id, role)
@@ -157,6 +158,19 @@ CREATE TABLE public.donations (
     mollie_payment_id TEXT,
     mollie_status TEXT,
     description TEXT,
+    paid_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.contributions (
+    id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    member_id UUID NOT NULL REFERENCES public.members(id),
+    contribution_year INTEGER NOT NULL,
+    amount NUMERIC NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    mollie_payment_id TEXT,
+    notes TEXT,
     paid_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
@@ -333,37 +347,49 @@ DECLARE
     existing_member_id UUID;
     member_is_admin BOOLEAN;
 BEGIN
-    IF NEW.email_confirmed_at IS NOT NULL THEN
-        SELECT id, is_admin INTO existing_member_id, member_is_admin
-        FROM public.members
-        WHERE email = NEW.email AND auth_user_id IS NULL;
-        
-        IF existing_member_id IS NOT NULL THEN
-            UPDATE public.members SET auth_user_id = NEW.id WHERE id = existing_member_id;
-            
+    -- Always try to link to existing member by email first
+    SELECT id, is_admin INTO existing_member_id, member_is_admin
+    FROM public.members
+    WHERE LOWER(email) = LOWER(NEW.email) AND auth_user_id IS NULL;
+
+    IF existing_member_id IS NOT NULL THEN
+        -- Link existing member to auth user
+        UPDATE public.members
+        SET auth_user_id = NEW.id
+        WHERE id = existing_member_id;
+
+        -- Give the user the 'member' role
+        INSERT INTO public.user_roles (user_id, role)
+        VALUES (NEW.id, 'member')
+        ON CONFLICT (user_id, role) DO NOTHING;
+
+        -- If member was marked as admin, also give admin role
+        IF member_is_admin THEN
             INSERT INTO public.user_roles (user_id, role)
-            VALUES (NEW.id, 'member') ON CONFLICT (user_id, role) DO NOTHING;
-            
-            IF member_is_admin THEN
-                INSERT INTO public.user_roles (user_id, role)
-                VALUES (NEW.id, 'admin') ON CONFLICT (user_id, role) DO NOTHING;
-            END IF;
-            
-            RETURN NEW;
+            VALUES (NEW.id, 'admin')
+            ON CONFLICT (user_id, role) DO NOTHING;
         END IF;
+
+        RETURN NEW;
     END IF;
-    
-    INSERT INTO public.members (auth_user_id, first_name, last_name, email, is_active, member_since)
-    VALUES (
-        NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'first_name', 'Nieuw'),
-        COALESCE(NEW.raw_user_meta_data->>'last_name', 'Lid'),
-        NEW.email, true, CURRENT_DATE
-    );
-    
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'member') ON CONFLICT (user_id, role) DO NOTHING;
-    
+
+    -- No existing member found - only create new member if email is confirmed
+    IF NEW.email_confirmed_at IS NOT NULL THEN
+        INSERT INTO public.members (
+            auth_user_id, first_name, last_name, email, is_active, member_since
+        ) VALUES (
+            NEW.id,
+            COALESCE(NEW.raw_user_meta_data->>'first_name', 'Nieuw'),
+            COALESCE(NEW.raw_user_meta_data->>'last_name', 'Lid'),
+            NEW.email, true, CURRENT_DATE
+        );
+
+        -- Give new user the 'member' role
+        INSERT INTO public.user_roles (user_id, role)
+        VALUES (NEW.id, 'member')
+        ON CONFLICT (user_id, role) DO NOTHING;
+    END IF;
+
     RETURN NEW;
 END;
 $$;
@@ -385,6 +411,7 @@ CREATE TRIGGER update_event_registrations_updated_at BEFORE UPDATE ON public.eve
 CREATE TRIGGER update_income_updated_at BEFORE UPDATE ON public.income FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON public.expenses FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_donations_updated_at BEFORE UPDATE ON public.donations FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_contributions_updated_at BEFORE UPDATE ON public.contributions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_invoice_items_updated_at BEFORE UPDATE ON public.invoice_items FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER update_budget_updated_at BEFORE UPDATE ON public.budget FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -407,6 +434,7 @@ ALTER TABLE public.event_registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.income ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.donations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contributions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoice_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budget ENABLE ROW LEVEL SECURITY;
@@ -423,11 +451,18 @@ CREATE POLICY "Members can view their linked company" ON public.companies FOR SE
 CREATE POLICY "Admins can view all members" ON public.members FOR SELECT USING (has_role(auth.uid(), 'admin'));
 CREATE POLICY "Members can only view their own record" ON public.members FOR SELECT USING (auth_user_id = auth.uid());
 CREATE POLICY "Admins can insert members" ON public.members FOR INSERT TO authenticated WITH CHECK (has_role(auth.uid(), 'admin') OR (auth_user_id = auth.uid()));
-CREATE POLICY "Members can update their own record" ON public.members FOR UPDATE TO authenticated USING ((auth_user_id = auth.uid()) OR has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can update any member" ON public.members FOR UPDATE TO authenticated USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Members can update own profile fields" ON public.members FOR UPDATE TO authenticated
+    USING (auth_user_id = auth.uid())
+    WITH CHECK (
+        (auth_user_id = auth.uid())
+        AND (is_admin = (SELECT m.is_admin FROM members m WHERE m.id = members.id))
+        AND (auth_user_id = (SELECT m.auth_user_id FROM members m WHERE m.id = members.id))
+    );
 CREATE POLICY "Admins can delete members" ON public.members FOR DELETE TO authenticated USING (has_role(auth.uid(), 'admin'));
 
 -- User roles
-CREATE POLICY "Users can view their own roles" ON public.user_roles FOR SELECT TO authenticated USING (user_id = auth.uid());
+CREATE POLICY "Users can view own roles" ON public.user_roles FOR SELECT TO authenticated USING (user_id = auth.uid());
 CREATE POLICY "Admins can manage all roles" ON public.user_roles FOR ALL TO authenticated USING (has_role(auth.uid(), 'admin'));
 
 -- Tags
@@ -461,6 +496,10 @@ CREATE POLICY "Members can view their own donations" ON public.donations FOR SEL
 CREATE POLICY "Members can create their own donations" ON public.donations FOR INSERT WITH CHECK (member_id = get_my_member_id());
 CREATE POLICY "Admins can manage all donations" ON public.donations FOR ALL USING (has_role(auth.uid(), 'admin'));
 
+-- Contributions
+CREATE POLICY "Members can view their own contributions" ON public.contributions FOR SELECT USING (member_id = get_my_member_id());
+CREATE POLICY "Admins can manage contributions" ON public.contributions FOR ALL USING (has_role(auth.uid(), 'admin'));
+
 -- Invoices
 CREATE POLICY "Members can view their own invoices" ON public.invoices FOR SELECT USING (member_id = get_my_member_id());
 CREATE POLICY "Admins can manage invoices" ON public.invoices FOR ALL USING (has_role(auth.uid(), 'admin'));
@@ -483,6 +522,7 @@ CREATE POLICY "Admins can manage mailings" ON public.mailings FOR ALL USING (has
 
 -- Mailing assets
 CREATE POLICY "Admins can manage mailing assets" ON public.mailing_assets FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Public can read logo assets" ON public.mailing_assets FOR SELECT USING (type = 'logo');
 
 -- =============================================================================
 -- 7. INDEXES
@@ -498,6 +538,8 @@ CREATE INDEX idx_invoices_company_id ON public.invoices(company_id);
 CREATE INDEX idx_invoices_invoice_year ON public.invoices(invoice_year);
 CREATE INDEX idx_invoices_member_id ON public.invoices(member_id);
 CREATE INDEX idx_invoices_status ON public.invoices(status);
+CREATE INDEX idx_contributions_member_id ON public.contributions(member_id);
+CREATE INDEX idx_contributions_year ON public.contributions(contribution_year);
 
 -- =============================================================================
 -- 8. STORAGE BUCKETS
@@ -544,24 +586,34 @@ CREATE POLICY "Members can view their own receipts" ON storage.objects
 --   SMTP_FROM_NAME     - Afzender naam
 --   MOLLIE_API_KEY     - Mollie API key voor betalingen
 --   RESEND_API_KEY     - Resend API key voor e-mail
+--   MAILERSEND_API_KEY - MailerSend API key
 --
 -- Configureer auth settings:
 --   - Disable email confirmations OF configureer een SMTP provider
 --   - Site URL instellen naar je domein
 --
 -- Deploy edge functions vanuit de codebase:
---   supabase functions deploy create-admin-account
---   supabase functions deploy reset-admin-password
+--   supabase functions deploy birthday-notifications
 --   supabase functions deploy check-member-email
---   supabase functions deploy send-mailing
---   supabase functions deploy send-invoice
+--   supabase functions deploy contribution-webhook
+--   supabase functions deploy create-admin-account
+--   supabase functions deploy create-contribution-payment
+--   supabase functions deploy create-friend
 --   supabase functions deploy create-mollie-payment
 --   supabase functions deploy mollie-webhook
+--   supabase functions deploy reset-admin-password
+--   supabase functions deploy send-contribution-invites
+--   supabase functions deploy send-event-confirmation
+--   supabase functions deploy send-invoice
+--   supabase functions deploy send-magic-link
+--   supabase functions deploy send-mailing
+--   supabase functions deploy send-onboarding-email
+--   supabase functions deploy toggle-admin-role
 --   supabase functions deploy unsubscribe
---   supabase functions deploy create-friend
 --
 -- Update .env met de nieuwe Supabase URL en anon key:
 --   VITE_SUPABASE_URL=https://<project-id>.supabase.co
 --   VITE_SUPABASE_PUBLISHABLE_KEY=<anon-key>
+--   VITE_SUPABASE_PROJECT_ID=<project-id>
 --
 -- =============================================================================

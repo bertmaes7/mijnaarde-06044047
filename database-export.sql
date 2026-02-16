@@ -1,8 +1,11 @@
 -- =============================================================================
 -- COMPLETE DATABASE SCHEMA EXPORT
 -- Project: Mijn Aarde - Ledenadministratie
--- Generated: 2026-02-07
+-- Generated: 2026-02-16
 -- Compatible with: PostgreSQL 14+
+--
+-- Dit bestand bevat enkel het schema (geen Supabase-specifieke triggers/storage).
+-- Voor een volledige Supabase-kloon, gebruik database-supabase-clone.sql.
 -- =============================================================================
 
 -- =============================================================================
@@ -56,6 +59,7 @@ CREATE TABLE public.members (
     instagram_url TEXT,
     tiktok_url TEXT,
     notes TEXT,
+    date_of_birth DATE,
     member_since DATE,
     is_active BOOLEAN DEFAULT true,
     is_active_member BOOLEAN DEFAULT true,
@@ -161,6 +165,20 @@ CREATE TABLE public.donations (
     mollie_payment_id TEXT,
     mollie_status TEXT,
     description TEXT,
+    paid_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- Contributions table
+CREATE TABLE public.contributions (
+    id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+    member_id UUID NOT NULL REFERENCES public.members(id),
+    contribution_year INTEGER NOT NULL,
+    amount NUMERIC NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    mollie_payment_id TEXT,
+    notes TEXT,
     paid_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
@@ -280,16 +298,8 @@ CREATE TABLE public.mailing_assets (
 
 CREATE VIEW public.companies_public AS
 SELECT 
-    id,
-    name,
-    address,
-    postal_code,
-    city,
-    country,
-    website,
-    is_supplier,
-    created_at,
-    updated_at
+    id, name, address, postal_code, city, country, website,
+    is_supplier, created_at, updated_at
 FROM public.companies;
 
 -- =============================================================================
@@ -299,26 +309,18 @@ FROM public.companies;
 -- Function to check if user has a specific role
 CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role public.app_role)
 RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
     SELECT EXISTS (
-        SELECT 1
-        FROM public.user_roles
-        WHERE user_id = _user_id
-          AND role = _role
+        SELECT 1 FROM public.user_roles
+        WHERE user_id = _user_id AND role = _role
     )
 $$;
 
 -- Function to get current user's member ID
 CREATE OR REPLACE FUNCTION public.get_my_member_id()
 RETURNS UUID
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
     SELECT id FROM public.members WHERE auth_user_id = auth.uid()
 $$;
@@ -326,23 +328,17 @@ $$;
 -- Function to check if user is linked to a company
 CREATE OR REPLACE FUNCTION public.is_linked_to_company(_company_id UUID)
 RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
     SELECT EXISTS (
-        SELECT 1
-        FROM public.members
-        WHERE auth_user_id = auth.uid()
-          AND company_id = _company_id
+        SELECT 1 FROM public.members
+        WHERE auth_user_id = auth.uid() AND company_id = _company_id
     )
 $$;
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS TRIGGER
-LANGUAGE plpgsql
+RETURNS TRIGGER LANGUAGE plpgsql
 AS $$
 BEGIN
     NEW.updated_at = now();
@@ -352,75 +348,61 @@ $$;
 
 -- Function to generate invoice number
 CREATE OR REPLACE FUNCTION public.generate_invoice_number(p_year INTEGER)
-RETURNS TEXT
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
+RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
     next_sequence INTEGER;
     invoice_num TEXT;
 BEGIN
     SELECT COALESCE(MAX(invoice_sequence), 0) + 1 INTO next_sequence
-    FROM public.invoices
-    WHERE invoice_year = p_year;
-    
+    FROM public.invoices WHERE invoice_year = p_year;
     invoice_num := p_year::TEXT || '-' || LPAD(next_sequence::TEXT, 3, '0');
-    
     RETURN invoice_num;
 END;
 $$;
 
 -- Function to handle new user registration
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
     existing_member_id UUID;
     member_is_admin BOOLEAN;
 BEGIN
-    IF NEW.email_confirmed_at IS NOT NULL THEN
-        SELECT id, is_admin INTO existing_member_id, member_is_admin
-        FROM public.members
-        WHERE email = NEW.email AND auth_user_id IS NULL;
-        
-        IF existing_member_id IS NOT NULL THEN
-            UPDATE public.members
-            SET auth_user_id = NEW.id
-            WHERE id = existing_member_id;
-            
+    -- Always try to link to existing member by email first
+    SELECT id, is_admin INTO existing_member_id, member_is_admin
+    FROM public.members
+    WHERE LOWER(email) = LOWER(NEW.email) AND auth_user_id IS NULL;
+
+    IF existing_member_id IS NOT NULL THEN
+        UPDATE public.members SET auth_user_id = NEW.id WHERE id = existing_member_id;
+
+        INSERT INTO public.user_roles (user_id, role)
+        VALUES (NEW.id, 'member') ON CONFLICT (user_id, role) DO NOTHING;
+
+        IF member_is_admin THEN
             INSERT INTO public.user_roles (user_id, role)
-            VALUES (NEW.id, 'member')
-            ON CONFLICT (user_id, role) DO NOTHING;
-            
-            IF member_is_admin THEN
-                INSERT INTO public.user_roles (user_id, role)
-                VALUES (NEW.id, 'admin')
-                ON CONFLICT (user_id, role) DO NOTHING;
-            END IF;
-            
-            RETURN NEW;
+            VALUES (NEW.id, 'admin') ON CONFLICT (user_id, role) DO NOTHING;
         END IF;
+
+        RETURN NEW;
     END IF;
-    
-    INSERT INTO public.members (
-        auth_user_id, first_name, last_name, email, is_active, member_since
-    ) VALUES (
-        NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'first_name', 'Nieuw'),
-        COALESCE(NEW.raw_user_meta_data->>'last_name', 'Lid'),
-        NEW.email,
-        true,
-        CURRENT_DATE
-    );
-    
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'member')
-    ON CONFLICT (user_id, role) DO NOTHING;
-    
+
+    -- No existing member found - only create new member if email is confirmed
+    IF NEW.email_confirmed_at IS NOT NULL THEN
+        INSERT INTO public.members (
+            auth_user_id, first_name, last_name, email, is_active, member_since
+        ) VALUES (
+            NEW.id,
+            COALESCE(NEW.raw_user_meta_data->>'first_name', 'Nieuw'),
+            COALESCE(NEW.raw_user_meta_data->>'last_name', 'Lid'),
+            NEW.email, true, CURRENT_DATE
+        );
+
+        INSERT INTO public.user_roles (user_id, role)
+        VALUES (NEW.id, 'member') ON CONFLICT (user_id, role) DO NOTHING;
+    END IF;
+
     RETURN NEW;
 END;
 $$;
@@ -429,61 +411,21 @@ $$;
 -- 5. TRIGGERS
 -- =============================================================================
 
-CREATE TRIGGER update_companies_updated_at
-    BEFORE UPDATE ON public.companies
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_members_updated_at
-    BEFORE UPDATE ON public.members
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_events_updated_at
-    BEFORE UPDATE ON public.events
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_event_registrations_updated_at
-    BEFORE UPDATE ON public.event_registrations
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_income_updated_at
-    BEFORE UPDATE ON public.income
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_expenses_updated_at
-    BEFORE UPDATE ON public.expenses
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_donations_updated_at
-    BEFORE UPDATE ON public.donations
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_invoices_updated_at
-    BEFORE UPDATE ON public.invoices
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_invoice_items_updated_at
-    BEFORE UPDATE ON public.invoice_items
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_budget_updated_at
-    BEFORE UPDATE ON public.budget
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_annual_report_inventory_updated_at
-    BEFORE UPDATE ON public.annual_report_inventory
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_mailing_templates_updated_at
-    BEFORE UPDATE ON public.mailing_templates
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_mailings_updated_at
-    BEFORE UPDATE ON public.mailings
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-CREATE TRIGGER update_mailing_assets_updated_at
-    BEFORE UPDATE ON public.mailing_assets
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_companies_updated_at BEFORE UPDATE ON public.companies FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_members_updated_at BEFORE UPDATE ON public.members FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON public.events FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_event_registrations_updated_at BEFORE UPDATE ON public.event_registrations FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_income_updated_at BEFORE UPDATE ON public.income FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON public.expenses FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_donations_updated_at BEFORE UPDATE ON public.donations FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_contributions_updated_at BEFORE UPDATE ON public.contributions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_invoice_items_updated_at BEFORE UPDATE ON public.invoice_items FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_budget_updated_at BEFORE UPDATE ON public.budget FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_annual_report_inventory_updated_at BEFORE UPDATE ON public.annual_report_inventory FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_mailing_templates_updated_at BEFORE UPDATE ON public.mailing_templates FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_mailings_updated_at BEFORE UPDATE ON public.mailings FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_mailing_assets_updated_at BEFORE UPDATE ON public.mailing_assets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- =============================================================================
 -- 6. ROW LEVEL SECURITY (RLS) POLICIES
@@ -500,6 +442,7 @@ ALTER TABLE public.event_registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.income ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.donations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.contributions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoice_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budget ENABLE ROW LEVEL SECURITY;
@@ -508,139 +451,90 @@ ALTER TABLE public.mailing_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mailings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mailing_assets ENABLE ROW LEVEL SECURITY;
 
--- Companies policies
-CREATE POLICY "Admins can manage companies" ON public.companies
-    FOR ALL TO authenticated USING (has_role(auth.uid(), 'admin'));
+-- Companies
+CREATE POLICY "Admins can manage companies" ON public.companies FOR ALL TO authenticated USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Members can view their linked company" ON public.companies FOR SELECT USING (has_role(auth.uid(), 'admin') OR is_linked_to_company(id));
 
-CREATE POLICY "Members can view their linked company" ON public.companies
-    FOR SELECT USING (has_role(auth.uid(), 'admin') OR is_linked_to_company(id));
+-- Members
+CREATE POLICY "Admins can view all members" ON public.members FOR SELECT USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Members can only view their own record" ON public.members FOR SELECT USING (auth_user_id = auth.uid());
+CREATE POLICY "Admins can insert members" ON public.members FOR INSERT TO authenticated WITH CHECK (has_role(auth.uid(), 'admin') OR (auth_user_id = auth.uid()));
+CREATE POLICY "Admins can update any member" ON public.members FOR UPDATE TO authenticated USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Members can update own profile fields" ON public.members FOR UPDATE TO authenticated
+    USING (auth_user_id = auth.uid())
+    WITH CHECK (
+        (auth_user_id = auth.uid())
+        AND (is_admin = (SELECT m.is_admin FROM members m WHERE m.id = members.id))
+        AND (auth_user_id = (SELECT m.auth_user_id FROM members m WHERE m.id = members.id))
+    );
+CREATE POLICY "Admins can delete members" ON public.members FOR DELETE TO authenticated USING (has_role(auth.uid(), 'admin'));
 
--- Members policies
-CREATE POLICY "Admins can view all members" ON public.members
-    FOR SELECT USING (has_role(auth.uid(), 'admin'));
+-- User roles
+CREATE POLICY "Users can view own roles" ON public.user_roles FOR SELECT TO authenticated USING (user_id = auth.uid());
+CREATE POLICY "Admins can manage all roles" ON public.user_roles FOR ALL TO authenticated USING (has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Members can only view their own record" ON public.members
-    FOR SELECT USING (auth_user_id = auth.uid());
+-- Tags
+CREATE POLICY "Authenticated users can view tags" ON public.tags FOR SELECT USING (true);
+CREATE POLICY "Admins can manage tags" ON public.tags FOR ALL USING (has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Admins can insert members" ON public.members
-    FOR INSERT TO authenticated WITH CHECK (has_role(auth.uid(), 'admin') OR (auth_user_id = auth.uid()));
+-- Member tags
+CREATE POLICY "Members can view their own tags" ON public.member_tags FOR SELECT USING (member_id = get_my_member_id());
+CREATE POLICY "Admins can manage member_tags" ON public.member_tags FOR ALL USING (has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Members can update their own record" ON public.members
-    FOR UPDATE TO authenticated USING ((auth_user_id = auth.uid()) OR has_role(auth.uid(), 'admin'));
+-- Events
+CREATE POLICY "Anyone can view published events" ON public.events FOR SELECT USING (is_published = true);
+CREATE POLICY "Admins can manage all events" ON public.events FOR ALL USING (has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Admins can delete members" ON public.members
-    FOR DELETE TO authenticated USING (has_role(auth.uid(), 'admin'));
+-- Event registrations
+CREATE POLICY "Members can view their own registrations" ON public.event_registrations FOR SELECT USING (member_id = get_my_member_id());
+CREATE POLICY "Members can register themselves" ON public.event_registrations FOR INSERT WITH CHECK (member_id = get_my_member_id());
+CREATE POLICY "Members can cancel their own registration" ON public.event_registrations FOR UPDATE USING (member_id = get_my_member_id());
+CREATE POLICY "Admins can manage all registrations" ON public.event_registrations FOR ALL USING (has_role(auth.uid(), 'admin'));
 
--- User roles policies
-CREATE POLICY "Users can view their own roles" ON public.user_roles
-    FOR SELECT TO authenticated USING (user_id = auth.uid());
+-- Income
+CREATE POLICY "Members can view their own income" ON public.income FOR SELECT TO authenticated USING (member_id = get_my_member_id());
+CREATE POLICY "Admins can manage income" ON public.income FOR ALL TO authenticated USING (has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Admins can manage all roles" ON public.user_roles
-    FOR ALL TO authenticated USING (has_role(auth.uid(), 'admin'));
+-- Expenses
+CREATE POLICY "Members can view their own expenses" ON public.expenses FOR SELECT TO authenticated USING (member_id = get_my_member_id());
+CREATE POLICY "Admins can manage expenses" ON public.expenses FOR ALL TO authenticated USING (has_role(auth.uid(), 'admin'));
 
--- Tags policies
-CREATE POLICY "Authenticated users can view tags" ON public.tags
-    FOR SELECT USING (true);
+-- Donations
+CREATE POLICY "Members can view their own donations" ON public.donations FOR SELECT USING (member_id = get_my_member_id());
+CREATE POLICY "Members can create their own donations" ON public.donations FOR INSERT WITH CHECK (member_id = get_my_member_id());
+CREATE POLICY "Admins can manage all donations" ON public.donations FOR ALL USING (has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Admins can manage tags" ON public.tags
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
+-- Contributions
+CREATE POLICY "Members can view their own contributions" ON public.contributions FOR SELECT USING (member_id = get_my_member_id());
+CREATE POLICY "Admins can manage contributions" ON public.contributions FOR ALL USING (has_role(auth.uid(), 'admin'));
 
--- Member tags policies
-CREATE POLICY "Members can view their own tags" ON public.member_tags
-    FOR SELECT USING (member_id = get_my_member_id());
+-- Invoices
+CREATE POLICY "Members can view their own invoices" ON public.invoices FOR SELECT USING (member_id = get_my_member_id());
+CREATE POLICY "Admins can manage invoices" ON public.invoices FOR ALL USING (has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Admins can manage member_tags" ON public.member_tags
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
+-- Invoice items
+CREATE POLICY "Members can view their own invoice items" ON public.invoice_items FOR SELECT USING (invoice_id IN (SELECT id FROM invoices WHERE member_id = get_my_member_id()));
+CREATE POLICY "Admins can manage invoice items" ON public.invoice_items FOR ALL USING (has_role(auth.uid(), 'admin'));
 
--- Events policies
-CREATE POLICY "Anyone can view published events" ON public.events
-    FOR SELECT USING (is_published = true);
+-- Budget
+CREATE POLICY "Admins can manage budget" ON public.budget FOR ALL USING (has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Admins can manage all events" ON public.events
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
+-- Annual report inventory
+CREATE POLICY "Admins can manage inventory" ON public.annual_report_inventory FOR ALL USING (has_role(auth.uid(), 'admin'));
 
--- Event registrations policies
-CREATE POLICY "Members can view their own registrations" ON public.event_registrations
-    FOR SELECT USING (member_id = get_my_member_id());
+-- Mailing templates
+CREATE POLICY "Admins can manage mailing templates" ON public.mailing_templates FOR ALL USING (has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Members can register themselves" ON public.event_registrations
-    FOR INSERT WITH CHECK (member_id = get_my_member_id());
+-- Mailings
+CREATE POLICY "Admins can manage mailings" ON public.mailings FOR ALL USING (has_role(auth.uid(), 'admin'));
 
-CREATE POLICY "Members can cancel their own registration" ON public.event_registrations
-    FOR UPDATE USING (member_id = get_my_member_id());
-
-CREATE POLICY "Admins can manage all registrations" ON public.event_registrations
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
-
--- Income policies
-CREATE POLICY "Members can view their own income" ON public.income
-    FOR SELECT TO authenticated USING (member_id = get_my_member_id());
-
-CREATE POLICY "Admins can manage income" ON public.income
-    FOR ALL TO authenticated USING (has_role(auth.uid(), 'admin'));
-
--- Expenses policies
-CREATE POLICY "Members can view their own expenses" ON public.expenses
-    FOR SELECT TO authenticated USING (member_id = get_my_member_id());
-
-CREATE POLICY "Admins can manage expenses" ON public.expenses
-    FOR ALL TO authenticated USING (has_role(auth.uid(), 'admin'));
-
--- Donations policies
-CREATE POLICY "Members can view their own donations" ON public.donations
-    FOR SELECT USING (member_id = get_my_member_id());
-
-CREATE POLICY "Members can create their own donations" ON public.donations
-    FOR INSERT WITH CHECK (member_id = get_my_member_id());
-
-CREATE POLICY "Admins can manage all donations" ON public.donations
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
-
--- Invoices policies
-CREATE POLICY "Members can view their own invoices" ON public.invoices
-    FOR SELECT USING (member_id = get_my_member_id());
-
-CREATE POLICY "Admins can manage invoices" ON public.invoices
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
-
--- Invoice items policies
-CREATE POLICY "Members can view their own invoice items" ON public.invoice_items
-    FOR SELECT USING (invoice_id IN (SELECT id FROM invoices WHERE member_id = get_my_member_id()));
-
-CREATE POLICY "Admins can manage invoice items" ON public.invoice_items
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
-
--- Budget policies
-CREATE POLICY "Admins can manage budget" ON public.budget
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
-
--- Annual report inventory policies
-CREATE POLICY "Admins can manage inventory" ON public.annual_report_inventory
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
-
--- Mailing templates policies
-CREATE POLICY "Admins can manage mailing templates" ON public.mailing_templates
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
-
--- Mailings policies
-CREATE POLICY "Admins can manage mailings" ON public.mailings
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
-
--- Mailing assets policies
-CREATE POLICY "Admins can manage mailing assets" ON public.mailing_assets
-    FOR ALL USING (has_role(auth.uid(), 'admin'));
+-- Mailing assets
+CREATE POLICY "Admins can manage mailing assets" ON public.mailing_assets FOR ALL USING (has_role(auth.uid(), 'admin'));
+CREATE POLICY "Public can read logo assets" ON public.mailing_assets FOR SELECT USING (type = 'logo');
 
 -- =============================================================================
--- 7. INDEXES (for performance)
+-- 7. INDEXES
 -- =============================================================================
-
-CREATE UNIQUE INDEX members_auth_user_id_key ON public.members(auth_user_id);
-CREATE UNIQUE INDEX tags_name_key ON public.tags(name);
-CREATE UNIQUE INDEX member_tags_member_id_tag_id_key ON public.member_tags(member_id, tag_id);
-CREATE UNIQUE INDEX event_registrations_event_id_member_id_key ON public.event_registrations(event_id, member_id);
-CREATE UNIQUE INDEX invoices_invoice_number_key ON public.invoices(invoice_number);
-CREATE UNIQUE INDEX mailing_assets_key_key ON public.mailing_assets(key);
-CREATE UNIQUE INDEX user_roles_user_id_role_key ON public.user_roles(user_id, role);
 
 CREATE INDEX idx_member_tags_member_id ON public.member_tags(member_id);
 CREATE INDEX idx_member_tags_tag_id ON public.member_tags(tag_id);
@@ -652,41 +546,5 @@ CREATE INDEX idx_invoices_company_id ON public.invoices(company_id);
 CREATE INDEX idx_invoices_invoice_year ON public.invoices(invoice_year);
 CREATE INDEX idx_invoices_member_id ON public.invoices(member_id);
 CREATE INDEX idx_invoices_status ON public.invoices(status);
-
--- =============================================================================
--- 8. STORAGE BUCKETS
--- =============================================================================
--- The app uses the following storage buckets:
---   - profile-photos (private, uses signed URLs)
---   - mailing-assets (public)
---   - receipts (private)
-
--- =============================================================================
--- NOTES FOR SELF-HOSTING
--- =============================================================================
--- 
--- 1. AUTHENTICATION:
---    The RLS policies use auth.uid() which is a Supabase-specific function.
---    For plain PostgreSQL, replace auth.uid() with your own session user function
---    or disable RLS and handle authorization in your application layer.
---
--- 2. EDGE FUNCTIONS:
---    The app uses the following edge functions that need reimplementation:
---    - create-admin-account
---    - reset-admin-password
---    - check-member-email
---    - send-mailing
---    - send-invoice
---    - create-mollie-payment
---    - mollie-webhook
---    - unsubscribe
---    - create-friend
---
--- 3. ENVIRONMENT VARIABLES NEEDED:
---    - Database connection string
---    - SMTP settings (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, 
---      SMTP_FROM_EMAIL, SMTP_FROM_NAME)
---    - MOLLIE_API_KEY (for payment processing)
---    - RESEND_API_KEY (for email delivery)
---
--- =============================================================================
+CREATE INDEX idx_contributions_member_id ON public.contributions(member_id);
+CREATE INDEX idx_contributions_year ON public.contributions(contribution_year);

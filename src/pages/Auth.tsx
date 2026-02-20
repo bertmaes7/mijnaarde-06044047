@@ -175,14 +175,26 @@ export default function Auth() {
     }
 
     setIsLoading(true);
-    const { error } = await resetPassword(loginEmail);
-    setIsLoading(false);
 
-    if (error) {
-      toast.error(error.message);
-    } else {
-      setResetLinkSent(true);
-      toast.success("Wachtwoord-reset link verzonden!");
+    try {
+      const { data, error } = await supabase.functions.invoke("send-reset-password", {
+        body: {
+          email: loginEmail,
+          redirectTo: `${window.location.origin}/change-password`,
+        },
+      });
+
+      setIsLoading(false);
+
+      if (error || data?.error) {
+        toast.error("Er ging iets mis bij het versturen van de reset link.");
+      } else {
+        setResetLinkSent(true);
+        toast.success("Wachtwoord-reset link verzonden!");
+      }
+    } catch (err) {
+      setIsLoading(false);
+      toast.error("Er ging iets mis bij het versturen van de reset link.");
     }
   };
 

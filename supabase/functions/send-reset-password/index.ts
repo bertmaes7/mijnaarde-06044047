@@ -35,9 +35,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Use passed redirectTo or fall back to SITE_URL env var
+    // Always use SITE_URL env var to ensure the link points to the correct production domain,
+    // regardless of which environment the request originates from.
     const siteUrl = Deno.env.get("SITE_URL") || "https://mijnaarde.lovable.app";
-    const finalRedirectTo = redirectTo || `${siteUrl}/change-password`;
+    const finalRedirectTo = `${siteUrl}/change-password`;
 
     // Generate password reset link via admin API (does NOT send an email)
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({

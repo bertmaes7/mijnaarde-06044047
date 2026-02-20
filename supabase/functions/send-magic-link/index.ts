@@ -35,12 +35,16 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Determine the redirect URL - use the passed redirectTo, or fall back to the site URL env var
+    const siteUrl = Deno.env.get("SITE_URL") || "https://mijnaarde.lovable.app";
+    const finalRedirectTo = redirectTo || `${siteUrl}/auth`;
+
     // Generate magic link via admin API (does NOT send an email)
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: "magiclink",
       email: email.trim().toLowerCase(),
       options: {
-        redirectTo: redirectTo || "https://mijnaarde.lovable.app/auth",
+        redirectTo: finalRedirectTo,
       },
     });
 

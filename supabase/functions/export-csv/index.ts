@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { JSZip } from "https://deno.land/x/jszip@0.11.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,6 +26,27 @@ function toCSV(rows: Record<string, unknown>[]): string {
   return lines.join("\n");
 }
 
+const TABLES = [
+  "companies",
+  "members",
+  "tags",
+  "member_tags",
+  "events",
+  "event_registrations",
+  "income",
+  "expenses",
+  "donations",
+  "contributions",
+  "invoices",
+  "invoice_items",
+  "budget",
+  "annual_report_inventory",
+  "mailing_templates",
+  "mailings",
+  "mailing_assets",
+  "user_roles",
+];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -38,30 +60,11 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const table = url.searchParams.get("table");
+    const format = url.searchParams.get("format"); // "zip" for all tables
 
-    const tables = [
-      "companies",
-      "members",
-      "tags",
-      "member_tags",
-      "events",
-      "event_registrations",
-      "income",
-      "expenses",
-      "donations",
-      "contributions",
-      "invoices",
-      "invoice_items",
-      "budget",
-      "annual_report_inventory",
-      "mailing_templates",
-      "mailings",
-      "mailing_assets",
-      "user_roles",
-    ];
-
+    // Single table CSV download
     if (table) {
-      if (!tables.includes(table)) {
+      if (!TABLES.includes(table)) {
         return new Response(JSON.stringify({ error: "Invalid table" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -81,9 +84,35 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Return list of available tables with row counts
+    // ZIP download of all tables
+    if (format === "zip") {
+      const jszip = new JSZip();
+
+      for (const t of TABLES) {
+        const { data, error } = await supabase.from(t).select("*");
+        if (error) {
+          console.error(`Error fetching ${t}:`, error.message);
+          continue;
+        }
+        const csv = "\uFEFF" + toCSV(data || []);
+        jszip.addFile(`${t}.csv`, csv);
+      }
+
+      const zipBuffer = await jszip.generateAsync({ type: "uint8array" });
+
+      const date = new Date().toISOString().split("T")[0];
+      return new Response(zipBuffer, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/zip",
+          "Content-Disposition": `attachment; filename="database-export-${date}.zip"`,
+        },
+      });
+    }
+
+    // Default: return table list with counts
     const result: Record<string, number> = {};
-    for (const t of tables) {
+    for (const t of TABLES) {
       const { count } = await supabase.from(t).select("*", { count: "exact", head: true });
       result[t] = count || 0;
     }
@@ -92,6 +121,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    console.error("Export error:", err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

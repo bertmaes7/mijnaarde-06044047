@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.send-magic-link]
 verify_jwt = false
+
+[functions.odata-members]
+verify_jwt = false

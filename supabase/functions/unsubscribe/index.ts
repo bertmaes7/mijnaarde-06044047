@@ -11,12 +11,32 @@ interface UnsubscribeRequest {
   token: string;
 }
 
-// Simple token validation - token is base64 encoded memberId + timestamp
-function validateToken(memberId: string, token: string): boolean {
+// HMAC-based token validation
+async function validateToken(memberId: string, token: string): Promise<boolean> {
   try {
+    const secret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
     const decoded = atob(token);
-    const [tokenMemberId] = decoded.split(":");
-    return tokenMemberId === memberId;
+    const parts = decoded.split(":");
+    if (parts.length < 3) {
+      // Fallback: support legacy base64 tokens (memberId:timestamp)
+      const [tokenMemberId] = parts;
+      return tokenMemberId === memberId;
+    }
+    const [tokenMemberId, timestamp, sigHex] = [parts[0], parts[1], parts.slice(2).join(":")];
+    if (tokenMemberId !== memberId) return false;
+
+    // Verify HMAC signature
+    const data = `${tokenMemberId}:${timestamp}`;
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+    const sigBytes = new Uint8Array(sigHex.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
+    return await crypto.subtle.verify("HMAC", key, sigBytes, encoder.encode(data));
   } catch {
     return false;
   }
@@ -47,8 +67,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate token
-    if (!validateToken(memberId, token)) {
+    // Validate token with HMAC
+    if (!(await validateToken(memberId, token))) {
       return new Response(
         JSON.stringify({ error: "Ongeldige uitschrijflink" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }

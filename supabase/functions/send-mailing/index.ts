@@ -50,10 +50,20 @@ function recordMailingSent(userId: string): void {
   }
 }
 
-function getCorsHeaders(): Record<string, string> {
+function getCorsHeaders(origin?: string | null): Record<string, string> {
+  const allowedOrigins = [
+    "https://mijnaarde.lovable.app",
+    "https://id-preview--720a5d5a-c520-4ef0-9d57-c342d034b40f.lovable.app",
+  ];
+  const siteUrl = Deno.env.get("SITE_URL");
+  if (siteUrl) allowedOrigins.push(siteUrl);
+
+  const corsOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+
   return {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": corsOrigin,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Vary": "Origin",
   };
 }
 
@@ -87,13 +97,25 @@ interface MailingAsset {
   value: string;
 }
 
-function generateUnsubscribeToken(memberId: string): string {
-  const data = `${memberId}:${Date.now()}`;
-  return btoa(data);
+async function generateUnsubscribeToken(memberId: string): Promise<string> {
+  const secret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  const timestamp = Date.now().toString();
+  const data = `${memberId}:${timestamp}`;
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+  const sigHex = Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, "0")).join("");
+  return btoa(`${data}:${sigHex}`);
 }
 
-function generateUnsubscribeUrl(memberId: string, baseUrl: string): string {
-  const token = generateUnsubscribeToken(memberId);
+async function generateUnsubscribeUrl(memberId: string, baseUrl: string): Promise<string> {
+  const token = await generateUnsubscribeToken(memberId);
   return `${baseUrl}/unsubscribe?id=${memberId}&token=${encodeURIComponent(token)}`;
 }
 
@@ -183,7 +205,7 @@ async function sendViaMailerSend(
 const handler = async (req: Request): Promise<Response> => {
   console.log("Send mailing function called - method:", req.method);
   
-  const corsHeaders = getCorsHeaders();
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
   
   if (req.method === "OPTIONS") {
     console.log("Handling OPTIONS preflight");
@@ -397,7 +419,7 @@ const handler = async (req: Request): Promise<Response> => {
             ? replacePlaceholders(templateData.text_content, member, assetsData)
             : undefined;
 
-          const unsubscribeUrl = generateUnsubscribeUrl(member.id, requestOrigin);
+          const unsubscribeUrl = await generateUnsubscribeUrl(member.id, requestOrigin);
           personalizedHtml = addUnsubscribeFooter(personalizedHtml, unsubscribeUrl);
           if (personalizedText) {
             personalizedText = addUnsubscribeFooterText(personalizedText, unsubscribeUrl);

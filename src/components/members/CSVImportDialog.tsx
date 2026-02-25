@@ -129,7 +129,7 @@ export function CSVImportDialog({ open, onOpenChange }: CSVImportDialogProps) {
             instagram_url: member.instagram_url || null,
             tiktok_url: member.tiktok_url || null,
             bank_account: member.bank_account || null,
-            member_since: member.member_since || null,
+            member_since: member.member_since || new Date().toISOString().split("T")[0],
             receives_mail: member.receives_mail,
             is_board_member: member.is_board_member,
             is_active_member: member.is_active_member,

@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+const MAILERSEND_API_URL = "https://api.resend.com/emails";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -17,12 +17,12 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+    const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
     const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
     const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
     if (!mailersendApiKey) {
-      throw new Error("MAILERSEND_API_KEY ontbreekt");
+      throw new Error("RESEND_API_KEY ontbreekt");
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -133,8 +133,8 @@ serve(async (req: Request) => {
           Authorization: `Bearer ${mailersendApiKey}`,
         },
         body: JSON.stringify({
-          from: { email: fromEmail, name: fromName },
-          to: [{ email: admin.email }],
+          from: `${fromName} <${fromEmail}>`,
+          to: [admin.email],
           subject: `🎂 ${upcomingBirthdays.length} aankomende verjaardag${upcomingBirthdays.length > 1 ? "en" : ""}`,
           html,
         }),

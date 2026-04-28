@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+const MAILERSEND_API_URL = "https://api.resend.com/emails";
 
 interface ResetPasswordRequest {
   memberId: string;
@@ -27,12 +27,12 @@ async function sendPasswordEmail(
   firstName: string,
   tempPassword: string
 ): Promise<void> {
-  const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+  const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
   const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
   const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
   if (!mailersendApiKey) {
-    console.error("MAILERSEND_API_KEY not configured, skipping email");
+    console.error("RESEND_API_KEY not configured, skipping email");
     return;
   }
 
@@ -58,8 +58,8 @@ async function sendPasswordEmail(
       Authorization: `Bearer ${mailersendApiKey}`,
     },
     body: JSON.stringify({
-      from: { email: fromEmail, name: fromName },
-      to: [{ email }],
+      from: `${fromName} <${fromEmail}>`,
+      to: [email],
       subject: "Uw wachtwoord is gereset - Mijn Aarde vzw",
       html,
     }),
@@ -67,7 +67,7 @@ async function sendPasswordEmail(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    console.error(`MailerSend error [${response.status}]: ${errorBody}`);
+    console.error(`Resend error [${response.status}]: ${errorBody}`);
   } else {
     console.log("Password reset email sent successfully to:", email);
   }

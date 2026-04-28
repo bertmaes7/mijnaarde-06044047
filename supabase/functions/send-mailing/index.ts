@@ -145,9 +145,9 @@ function replacePlaceholders(content: string, member: Member, assets: MailingAss
 }
 
 // MailerSend API helper
-const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+const MAILERSEND_API_URL = "https://api.resend.com/emails";
 
-async function sendViaMailerSend(
+async function sendViaResend(
   apiKey: string,
   from: { email: string; name: string },
   to: string,
@@ -156,8 +156,8 @@ async function sendViaMailerSend(
   text?: string
 ): Promise<void> {
   const body: Record<string, unknown> = {
-    from: { email: from.email, name: from.name },
-    to: [{ email: to }],
+    from: `${from.name} <${from.email}>`,
+    to: [to],
     subject,
     html,
   };
@@ -176,7 +176,7 @@ async function sendViaMailerSend(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`MailerSend API error [${response.status}]: ${errorBody}`);
+    throw new Error(`Resend API error [${response.status}]: ${errorBody}`);
   }
 }
 
@@ -208,7 +208,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+    const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
     const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
     const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
     
@@ -226,7 +226,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (!mailersendApiKey) {
       console.error("Missing MailerSend API key");
       return new Response(
-        JSON.stringify({ error: "MAILERSEND_API_KEY ontbreekt. Voeg deze toe aan de secrets." }),
+        JSON.stringify({ error: "RESEND_API_KEY ontbreekt. Voeg deze toe aan de secrets." }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -368,7 +368,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Sending to ${membersList.length} recipients via MailerSend (${fromEmail})`);
+    console.log(`Sending to ${membersList.length} recipients via Resend (${fromEmail})`);
 
     const requestOrigin = req.headers.get("origin") || "https://mijnaarde.lovable.app";
     console.log(`Using origin for unsubscribe links: ${requestOrigin}`);
@@ -403,7 +403,7 @@ const handler = async (req: Request): Promise<Response> => {
             personalizedText = addUnsubscribeFooterText(personalizedText, unsubscribeUrl);
           }
 
-          await sendViaMailerSend(
+          await sendViaResend(
             mailersendApiKey,
             { email: fromEmail, name: fromName },
             member.email,

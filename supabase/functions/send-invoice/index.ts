@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+const MAILERSEND_API_URL = "https://api.resend.com/emails";
 
 interface SendInvoiceRequest {
   invoiceId: string;
@@ -22,12 +22,12 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+    const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
     const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
     const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
     if (!mailersendApiKey) {
-      throw new Error("MAILERSEND_API_KEY ontbreekt");
+      throw new Error("RESEND_API_KEY ontbreekt");
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -183,8 +183,8 @@ serve(async (req) => {
       </html>
     `;
 
-    // Send email via MailerSend
-    console.log(`Sending ${type} email to ${customerEmail} for invoice ${invoice.invoice_number} via MailerSend`);
+    // Send email via Resend
+    console.log(`Sending ${type} email to ${customerEmail} for invoice ${invoice.invoice_number} via Resend`);
     
     const response = await fetch(MAILERSEND_API_URL, {
       method: "POST",
@@ -193,8 +193,8 @@ serve(async (req) => {
         Authorization: `Bearer ${mailersendApiKey}`,
       },
       body: JSON.stringify({
-        from: { email: fromEmail, name: fromName },
-        to: [{ email: customerEmail }],
+        from: `${fromName} <${fromEmail}>`,
+        to: [customerEmail],
         subject,
         html: emailHtml,
       }),
@@ -205,7 +205,7 @@ serve(async (req) => {
       throw new Error(`Email verzenden mislukt [${response.status}]: ${errorBody}`);
     }
 
-    console.log("Email sent successfully via MailerSend");
+    console.log("Email sent successfully via Resend");
 
     // Update invoice status
     const updateData: Record<string, unknown> = {};

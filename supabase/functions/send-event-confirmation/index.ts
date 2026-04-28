@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+const MAILERSEND_API_URL = "https://api.resend.com/emails";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -17,12 +17,12 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+    const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
     const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
     const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
     if (!mailersendApiKey) {
-      throw new Error("MAILERSEND_API_KEY ontbreekt");
+      throw new Error("RESEND_API_KEY ontbreekt");
     }
 
     const { registrationId } = await req.json();
@@ -97,7 +97,7 @@ serve(async (req: Request) => {
       </div>
     `;
 
-    // Send via MailerSend
+    // Send via Resend
     const response = await fetch(MAILERSEND_API_URL, {
       method: "POST",
       headers: {
@@ -105,8 +105,8 @@ serve(async (req: Request) => {
         Authorization: `Bearer ${mailersendApiKey}`,
       },
       body: JSON.stringify({
-        from: { email: fromEmail, name: fromName },
-        to: [{ email: member.email, name: `${member.first_name} ${member.last_name}` }],
+        from: `${fromName} <${fromEmail}>`,
+        to: [member.email],
         subject: `Bevestiging: ${event.title}`,
         html,
       }),
@@ -114,7 +114,7 @@ serve(async (req: Request) => {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new Error(`MailerSend error [${response.status}]: ${errorBody}`);
+      throw new Error(`Resend error [${response.status}]: ${errorBody}`);
     }
 
     console.log(`Event confirmation sent to ${member.email} for event ${event.title}`);

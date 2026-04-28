@@ -35,3 +35,7 @@ verify_jwt = false
 
 [functions.data-chat]
 verify_jwt = false
+
+[functions.external-api]
+verify_jwt = false
+

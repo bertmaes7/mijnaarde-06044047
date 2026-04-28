@@ -90,9 +90,10 @@ export function useUpdateContribution() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Contribution> }) => {
+      const { member, ...updateData } = data as any;
       const { error } = await supabase
         .from("contributions")
-        .update(data)
+        .update(updateData)
         .eq("id", id);
       if (error) throw error;
     },

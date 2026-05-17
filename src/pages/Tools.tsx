@@ -55,7 +55,7 @@ import {
 import { useMembers, useDuplicateEmails, useBulkUpdateMembers } from "@/hooks/useMembers";
 import { useCompanies } from "@/hooks/useCompanies";
 import { useTags, useBulkAddTag, useBulkRemoveTag, useCreateTag } from "@/hooks/useTags";
-import { Wrench, AlertTriangle, Users, RefreshCw, Loader2, Shield, Key, Copy, Check, Tag, Plus, Search, X, ChevronDown, Filter } from "lucide-react";
+import { Wrench, AlertTriangle, Users, RefreshCw, Loader2, Shield, Key, Copy, Check, Tag, Plus, Search, X, ChevronDown, Filter, Download } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -384,6 +384,40 @@ export default function Tools() {
             </p>
           </div>
         </div>
+
+        {/* Data Export Section */}
+        <Card className="card-elevated">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Download className="h-5 w-5 text-primary" />
+                  Data exporteren
+                </CardTitle>
+                <CardDescription>
+                  Download alle tabellen als CSV-bestanden in één ZIP-archief
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-csv?format=zip`;
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = "";
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  toast.success("Download gestart...");
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download ZIP
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
 
         {/* Duplicate Emails Section */}
         <Card className="card-elevated">

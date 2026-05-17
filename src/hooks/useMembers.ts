@@ -130,7 +130,7 @@ export function useBulkUpdateMembers() {
     }) => {
       const { error } = await supabase
         .from("members")
-        .update({ [field]: value })
+        .update({ [field]: value } as any)
         .in("id", memberIds);
       
       if (error) throw error;

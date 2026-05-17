@@ -112,7 +112,7 @@ export function MemberForm({ member, onSubmit, isLoading, onDirtyChange }: Membe
       instagram_url: member?.instagram_url || "",
       tiktok_url: member?.tiktok_url || "",
       bank_account: member?.bank_account || "",
-      member_since: member?.member_since || "",
+      member_since: member?.member_since || (member ? "" : new Date().toISOString().split("T")[0]),
       date_of_birth: member?.date_of_birth || "",
       receives_mail: member?.receives_mail ?? true,
       is_board_member: member?.is_board_member ?? false,

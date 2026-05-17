@@ -29,11 +29,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans&display=swap");
+
 /* Mijn Aarde Dashboard - Earth-inspired Design System */
 
 @layer base {
   :root {
-    /* Earth-inspired color palette — Mijn Aarde vzw */
+    /* Aardse pastel palette — Mijn Aarde vzw */
     --background: 35 30% 95%;
     --foreground: 150 30% 12%;
 
@@ -43,20 +47,20 @@
     --popover: 40 25% 98%;
     --popover-foreground: 150 30% 12%;
 
-    /* Deep forest green */
+    /* Mossy forest green — zacht en warm */
     --primary: 152 50% 24%;
     --primary-foreground: 40 30% 96%;
 
-    /* Warm sand */
+    /* Warm zand pastel */
     --secondary: 32 40% 88%;
     --secondary-foreground: 150 30% 12%;
 
-    /* Sage muted */
+    /* Gedempte salie */
     --muted: 80 18% 88%;
     --muted-foreground: 150 12% 40%;
 
-    /* Terracotta accent */
-    --accent: 18 55% 50%;
+    /* Zachte terracotta pastel */
+    --accent: 15 74.6479% 27.8431%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
@@ -148,12 +152,12 @@
   .gradient-earth {
     background: var(--earth-gradient);
   }
-  
+
   .card-elevated {
     box-shadow: var(--card-shadow);
     transition: box-shadow 0.2s ease;
   }
-  
+
   .card-elevated:hover {
     box-shadow: var(--card-shadow-hover);
   }

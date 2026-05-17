@@ -7,11 +7,14 @@ import { Users, Wallet, Euro, TrendingUp, UserPlus, ArrowDownCircle, ArrowUpCirc
 import { useMemo } from "react";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
+import { DataChat } from "@/components/dashboard/DataChat";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Dashboard() {
   const { data: members = [] } = useMembers();
   const { data: income = [] } = useIncome();
   const { data: expenses = [] } = useExpenses();
+  const { isAdmin } = useAuth();
 
   // Calculate current quarter income and current balance
   const { quarterIncome, currentBalance, memberGrowthPercent, newMembersCount } = useMemo(() => {
@@ -243,6 +246,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* AI Data Chat - only for admins */}
+        {isAdmin && <DataChat />}
       </div>
     </MainLayout>
   );

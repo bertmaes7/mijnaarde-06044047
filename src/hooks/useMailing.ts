@@ -291,9 +291,10 @@ export function useUpdateMailing() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Mailing> }) => {
+      const { template, ...updateData } = data as any;
       const { error } = await supabase
         .from("mailings")
-        .update(data)
+        .update(updateData)
         .eq("id", id);
       if (error) throw error;
     },

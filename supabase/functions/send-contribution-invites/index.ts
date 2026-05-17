@@ -7,9 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+const MAILERSEND_API_URL = "https://api.resend.com/emails";
 
-async function sendViaMailerSend(
+async function sendViaResend(
   apiKey: string,
   from: { email: string; name: string },
   to: string,
@@ -23,8 +23,8 @@ async function sendViaMailerSend(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      from: { email: from.email, name: from.name },
-      to: [{ email: to }],
+      from: `${from.name} <${from.email}>`,
+      to: [to],
       subject,
       html,
     }),
@@ -32,7 +32,7 @@ async function sendViaMailerSend(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`MailerSend API error [${response.status}]: ${errorBody}`);
+    throw new Error(`Resend API error [${response.status}]: ${errorBody}`);
   }
 }
 
@@ -45,11 +45,11 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+    const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
     const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
     const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
-    if (!mailersendApiKey) throw new Error("MAILERSEND_API_KEY ontbreekt");
+    if (!mailersendApiKey) throw new Error("RESEND_API_KEY ontbreekt");
 
     // Auth check
     const authHeader = req.headers.get("authorization");
@@ -158,7 +158,7 @@ serve(async (req: Request) => {
 </html>`;
 
       try {
-        await sendViaMailerSend(
+        await sendViaResend(
           mailersendApiKey,
           { email: fromEmail, name: fromName },
           member.email,

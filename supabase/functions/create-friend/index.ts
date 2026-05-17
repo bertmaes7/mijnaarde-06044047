@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+const MAILERSEND_API_URL = "https://api.resend.com/emails";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -103,9 +103,9 @@ Deno.serve(async (req) => {
 });
 
 async function sendThankYouEmail(supabase: any, email: string, firstName: string) {
-  const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+  const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
   if (!mailersendApiKey) {
-    console.error("MAILERSEND_API_KEY not configured, skipping thank you email");
+    console.error("RESEND_API_KEY not configured, skipping thank you email");
     return;
   }
 
@@ -212,8 +212,8 @@ async function sendThankYouEmail(supabase: any, email: string, firstName: string
       Authorization: `Bearer ${mailersendApiKey}`,
     },
     body: JSON.stringify({
-      from: { email: fromEmail, name: fromName },
-      to: [{ email }],
+      from: `${fromName} <${fromEmail}>`,
+      to: [email],
       subject: `Welkom bij ${orgName}`,
       html,
     }),
@@ -221,7 +221,7 @@ async function sendThankYouEmail(supabase: any, email: string, firstName: string
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`MailerSend error [${response.status}]: ${errorBody}`);
+    throw new Error(`Resend error [${response.status}]: ${errorBody}`);
   }
 
   console.log(`Thank you email sent to ${email}`);

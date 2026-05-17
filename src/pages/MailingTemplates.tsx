@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Plus, Trash2, Save, FileCode, Eye, ArrowLeft, FileText, Loader2, Copy, Code } from "lucide-react";
+import { Plus, Trash2, Save, FileCode, Eye, ArrowLeft, FileText, Loader2, Copy, Code, Upload } from "lucide-react";
 import {
   useMailingTemplates,
   useCreateMailingTemplate,
@@ -85,6 +85,7 @@ export default function MailingTemplates() {
   const [editorMode, setEditorMode] = useState<"visual" | "html">("visual");
   const htmlTextareaRef = useRef<HTMLTextAreaElement>(null);
   const textTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const htmlFileRef = useRef<HTMLInputElement>(null);
 
   // Text blocks state
   const [editedTextBlocks, setEditedTextBlocks] = useState<Record<string, string>>({});
@@ -276,6 +277,25 @@ export default function MailingTemplates() {
     }
   };
 
+  const handleImportHtml = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith(".html") && file.type !== "text/html") {
+      toast.error("Enkel .html bestanden zijn toegestaan");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target?.result as string;
+      setFormData((prev) => ({ ...prev, html_content: content }));
+      setEditorMode("html");
+      setActiveTab("visual");
+      toast.success(`"${file.name}" geïmporteerd`);
+    };
+    reader.readAsText(file, "utf-8");
+    e.target.value = "";
+  };
+
   if (isLoading) {
     return (
       <MainLayout>
@@ -410,7 +430,26 @@ export default function MailingTemplates() {
                   )}
                   
                   <div className="flex-1" />
-                  
+
+                  {/* HTML file import */}
+                  <input
+                    ref={htmlFileRef}
+                    type="file"
+                    accept=".html,text/html"
+                    className="hidden"
+                    onChange={handleImportHtml}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => htmlFileRef.current?.click()}
+                    className="h-7 text-xs"
+                  >
+                    <Upload className="h-3 w-3 mr-1" />
+                    HTML importeren
+                  </Button>
+
                   {/* Editor mode toggle */}
                   <Button
                     type="button"

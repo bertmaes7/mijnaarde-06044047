@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MAILERSEND_API_URL = "https://api.mailersend.com/v1/email";
+const MAILERSEND_API_URL = "https://api.resend.com/emails";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -26,9 +26,9 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const mailersendApiKey = Deno.env.get("MAILERSEND_API_KEY");
+    const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!mailersendApiKey) {
-      console.error("MAILERSEND_API_KEY not configured");
+      console.error("RESEND_API_KEY not configured");
       return new Response(
         JSON.stringify({ error: "Email service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -175,8 +175,8 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${mailersendApiKey}`,
       },
       body: JSON.stringify({
-        from: { email: fromEmail, name: fromName },
-        to: [{ email: email.trim().toLowerCase() }],
+        from: `${fromName} <${fromEmail}>`,
+        to: [email.trim().toLowerCase()],
         subject: `Wachtwoord herstellen - ${orgName}`,
         html,
       }),
@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`MailerSend error [${response.status}]: ${errorBody}`);
+      console.error(`Resend error [${response.status}]: ${errorBody}`);
       return new Response(
         JSON.stringify({ error: "Failed to send email" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

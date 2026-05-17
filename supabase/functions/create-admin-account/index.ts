@@ -34,41 +34,28 @@ async function sendPasswordEmail(
   firstName: string,
   tempPassword: string
 ): Promise<void> {
-  const smtpHost = Deno.env.get("SMTP_HOST");
-  const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
-  const smtpUser = Deno.env.get("SMTP_USER");
-  const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-  const smtpFromEmail = Deno.env.get("SMTP_FROM_EMAIL");
-  const smtpFromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+  const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "info@mijnaarde.com";
+  const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
-  if (!smtpHost || !smtpUser || !smtpPassword || !smtpFromEmail) {
-    console.error("SMTP configuration incomplete, skipping email");
+  if (!resendApiKey) {
+    console.error("RESEND_API_KEY not configured, skipping email");
     return;
   }
 
-  // Use Deno's SMTP client
-  const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
-  
-  const client = new SMTPClient({
-    connection: {
-      hostname: smtpHost,
-      port: smtpPort,
-      tls: true,
-      auth: {
-        username: smtpUser,
-        password: smtpPassword,
-      },
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${resendApiKey}`,
     },
-  });
-
-  try {
-    await client.send({
-      from: `${smtpFromName} <${smtpFromEmail}>`,
-      to: email,
+    body: JSON.stringify({
+      from: `${fromName} <${fromEmail}>`,
+      to: [email],
       subject: "Uw beheerdersaccount voor Mijn Aarde vzw",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #16a34a;">Welkom als beheerder!</h2>
+          <h2 style="color: #2d5016;">Welkom als beheerder!</h2>
           <p>Beste ${firstName},</p>
           <p>Er is een beheerdersaccount voor u aangemaakt bij Mijn Aarde vzw.</p>
           <p>Uw inloggegevens zijn:</p>
@@ -80,12 +67,14 @@ async function sendPasswordEmail(
           <p>Met vriendelijke groeten,<br>Mijn Aarde vzw</p>
         </div>
       `,
-    });
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(`Resend error [${response.status}]: ${errorBody}`);
+  } else {
     console.log("Password email sent successfully to:", email);
-  } catch (error) {
-    console.error("Failed to send email:", error);
-  } finally {
-    await client.close();
   }
 }
 

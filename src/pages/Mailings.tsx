@@ -55,6 +55,7 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
   scheduled: { label: "Ingepland", variant: "default" },
   sent: { label: "Verzonden", variant: "outline" },
   failed: { label: "Mislukt", variant: "destructive" },
+  paused: { label: "Gepauzeerd", variant: "secondary" },
 };
 
 export default function Mailings() {
@@ -171,14 +172,17 @@ export default function Mailings() {
       if (error) throw error;
 
       if (data.success) {
-        toast.success(`Mailing verzonden naar ${data.sent} ontvangers`);
-        if (data.failed > 0) {
-          toast.warning(`${data.failed} e-mails konden niet worden verzonden`);
+        if (data.paused) {
+          toast.warning(`Daglimiet bereikt — ${data.totalSent}/${data.total} verzonden. Morgen op "Doorgaan" klikken om de rest te versturen.`);
+        } else {
+          toast.success(`Mailing verzonden naar ${data.sent} ontvangers`);
+          if (data.failed > 0) {
+            toast.warning(`${data.failed} e-mails konden niet worden verzonden`);
+          }
+          setSelectedMailing(null);
+          setIsCreating(false);
         }
         refetch();
-        // Go back to list after successful send
-        setSelectedMailing(null);
-        setIsCreating(false);
       } else {
         throw new Error(data.error || "Onbekende fout");
       }
@@ -601,7 +605,7 @@ export default function Mailings() {
                 {selectedMailing && selectedMailing.status !== "sent" && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button 
+                      <Button
                         variant="default"
                         disabled={!formData.title || !formData.template_id || recipientCount === 0 || isSending}
                       >
@@ -610,20 +614,22 @@ export default function Mailings() {
                         ) : (
                           <Send className="h-4 w-4 mr-2" />
                         )}
-                        Nu versturen ({recipientCount})
+                        {selectedMailing.status === "paused" ? `Doorgaan (${(selectedMailing as typeof selectedMailing & { sent_member_count?: number }).sent_member_count ?? 0}/${recipientCount} gedaan)` : `Nu versturen (${recipientCount})`}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent key={`send-dialog-${recipientCount}`}>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Mailing nu versturen?</AlertDialogTitle>
+                        <AlertDialogTitle>{selectedMailing.status === "paused" ? "Doorgaan met versturen?" : "Mailing nu versturen?"}</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Deze mailing wordt direct verzonden naar {recipientCount} ontvangers. Dit kan niet ongedaan worden gemaakt.
+                          {selectedMailing.status === "paused"
+                            ? `Er zijn al ${(selectedMailing as typeof selectedMailing & { sent_member_count?: number }).sent_member_count ?? 0} mails verstuurd. De resterende ontvangers worden nu behandeld.`
+                            : `Deze mailing wordt direct verzonden naar ${recipientCount} ontvangers. Dit kan niet ongedaan worden gemaakt.`}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Annuleren</AlertDialogCancel>
                         <AlertDialogAction onClick={() => handleSendNow(selectedMailing.id)}>
-                          Versturen
+                          {selectedMailing.status === "paused" ? "Doorgaan" : "Versturen"}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

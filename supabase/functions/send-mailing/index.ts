@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import nodemailer from "npm:nodemailer@6.9.13";
 
 // Rate limiting configuration
 const RATE_LIMIT = {
@@ -51,20 +50,10 @@ function recordMailingSent(userId: string): void {
   }
 }
 
-function getCorsHeaders(origin?: string | null): Record<string, string> {
-  const allowedOrigins = [
-    "https://mijnaarde.lovable.app",
-    "https://id-preview--720a5d5a-c520-4ef0-9d57-c342d034b40f.lovable.app",
-  ];
-  const siteUrl = Deno.env.get("SITE_URL");
-  if (siteUrl) allowedOrigins.push(siteUrl);
-
-  const corsOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
-
+function getCorsHeaders(): Record<string, string> {
   return {
-    "Access-Control-Allow-Origin": corsOrigin,
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Vary": "Origin",
   };
 }
 
@@ -167,27 +156,43 @@ function replacePlaceholders(content: string, member: Member, assets: MailingAss
   return result;
 }
 
-async function sendViaSMTP(
-  transporter: nodemailer.Transporter,
+async function sendViaBrevo(
+  apiKey: string,
   from: { email: string; name: string },
   to: string,
   subject: string,
   html: string,
   text?: string
 ): Promise<void> {
-  await transporter.sendMail({
-    from: `"${from.name}" <${from.email}>`,
-    to,
+  const body: Record<string, unknown> = {
+    sender: { name: from.name, email: from.email },
+    to: [{ email: to }],
     subject,
-    html,
-    ...(text ? { text } : {}),
+    htmlContent: html,
+  };
+  if (text) body.textContent = text;
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: JSON.stringify(body),
   });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(`Brevo API error [${response.status}]:`, errorBody);
+    throw new Error(`Brevo [${response.status}]: ${errorBody}`);
+  }
+  console.log("Brevo send OK to:", to);
 }
 
 const handler = async (req: Request): Promise<Response> => {
   console.log("Send mailing function called - method:", req.method);
   
-  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
+  const corsHeaders = getCorsHeaders();
   
   if (req.method === "OPTIONS") {
     console.log("Handling OPTIONS preflight");
@@ -212,15 +217,12 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const smtpHost = Deno.env.get("SMTP_HOST") || "smtpout.secureserver.net";
-    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
-    const smtpUser = Deno.env.get("SMTP_USER") || "bert@mijnaarde.com";
-    const smtpPass = Deno.env.get("SMTP_PASS");
-    const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || smtpUser;
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+    const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
     const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
     console.log("Env vars present - URL:", !!supabaseUrl, "Anon:", !!supabaseAnonKey, "Service:", !!supabaseServiceKey);
-    console.log("SMTP config:", smtpHost, smtpPort, smtpUser, "pass:", !!smtpPass);
+    console.log("Brevo API key present:", !!brevoApiKey);
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
       console.error("Missing Supabase environment variables");
@@ -230,20 +232,13 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    if (!smtpPass) {
-      console.error("Missing SMTP_PASS secret");
+    if (!brevoApiKey) {
+      console.error("Missing BREVO_API_KEY secret");
       return new Response(
-        JSON.stringify({ error: "SMTP_PASS ontbreekt. Voeg dit toe via: supabase secrets set SMTP_PASS=..." }),
+        JSON.stringify({ error: "BREVO_API_KEY ontbreekt in de secrets." }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass },
-    });
 
     console.log("Creating auth client");
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
@@ -382,32 +377,36 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`Sending to ${membersList.length} recipients via SMTP (${fromEmail})`);
+    const BATCH_SIZE = 290; // veiligheidsmarge onder de 300/dag limiet
+    const startOffset = (mailingData as Mailing & { sent_member_count: number }).sent_member_count ?? 0;
+    const batch = membersList.slice(startOffset);
+
+    console.log(`Sending to ${batch.length} recipients via Brevo (${fromEmail}), offset ${startOffset}/${membersList.length}`);
 
     const requestOrigin = req.headers.get("origin") || "https://mijnaarde.lovable.app";
-    console.log(`Using origin for unsubscribe links: ${requestOrigin}`);
 
     let successCount = 0;
     let failCount = 0;
+    let dailyLimitHit = false;
     const errors: string[] = [];
 
     const MAX_RETRIES = 3;
 
-    for (let i = 0; i < membersList.length; i++) {
-      const member = membersList[i];
+    for (let i = 0; i < batch.length; i++) {
+      if (successCount >= BATCH_SIZE) break;
+
+      const member = batch[i];
       if (!member.email) continue;
 
-      // Wait 600ms between emails to respect rate limits
       if (i > 0) {
         await new Promise(resolve => setTimeout(resolve, 600));
       }
 
-      let sent = false;
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
           const personalizedSubject = replacePlaceholders(templateData.subject, member, assetsData);
           let personalizedHtml = replacePlaceholders(templateData.html_content, member, assetsData);
-          let personalizedText = templateData.text_content 
+          let personalizedText = templateData.text_content
             ? replacePlaceholders(templateData.text_content, member, assetsData)
             : undefined;
 
@@ -417,8 +416,8 @@ const handler = async (req: Request): Promise<Response> => {
             personalizedText = addUnsubscribeFooterText(personalizedText, unsubscribeUrl);
           }
 
-          await sendViaSMTP(
-            transporter,
+          await sendViaBrevo(
+            brevoApiKey,
             { email: fromEmail, name: fromName },
             member.email,
             personalizedSubject,
@@ -427,16 +426,21 @@ const handler = async (req: Request): Promise<Response> => {
           );
 
           successCount++;
-          sent = true;
           console.log(`Email sent to ${member.email}`);
           break;
         } catch (emailError: unknown) {
           const errorMessage = emailError instanceof Error ? emailError.message : String(emailError);
+          const isDailyLimit = errorMessage.toLowerCase().includes("daily") || errorMessage.toLowerCase().includes("quota");
           const isRateLimit = errorMessage.includes("429") || errorMessage.toLowerCase().includes("too many requests");
+
+          if (isDailyLimit) {
+            console.warn(`Brevo daily limit hit at member ${startOffset + i}. Pausing.`);
+            dailyLimitHit = true;
+            break;
+          }
 
           if (isRateLimit && attempt < MAX_RETRIES - 1) {
             const backoffMs = 1000 * Math.pow(2, attempt);
-            console.warn(`Rate limited for ${member.email}, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
             await new Promise(resolve => setTimeout(resolve, backoffMs));
             continue;
           }
@@ -444,30 +448,39 @@ const handler = async (req: Request): Promise<Response> => {
           if (attempt === MAX_RETRIES - 1) {
             failCount++;
             errors.push(`${member.email}: ${errorMessage}`);
-            console.error(`Failed to send to ${member.email} after ${MAX_RETRIES} attempts:`, errorMessage);
+            console.error(`Failed to send to ${member.email}:`, errorMessage);
           }
         }
       }
+
+      if (dailyLimitHit) break;
     }
 
-    const newStatus = failCount === membersList.length ? "failed" : "sent";
+    const totalSent = startOffset + successCount;
+    const allDone = !dailyLimitHit && totalSent >= membersList.length;
+    const newStatus = allDone ? "sent" : (dailyLimitHit ? "paused" : (failCount === batch.length ? "failed" : "sent"));
+
     await supabase
       .from("mailings")
       .update({
         status: newStatus,
-        sent_at: new Date().toISOString(),
+        sent_member_count: totalSent,
+        sent_at: allDone ? new Date().toISOString() : null,
       })
       .eq("id", mailingId);
 
     recordMailingSent(userId);
 
-    console.log(`Mailing complete by user ${userId}. Success: ${successCount}, Failed: ${failCount}`);
+    console.log(`Batch done. Sent: ${successCount}, Failed: ${failCount}, Total: ${totalSent}/${membersList.length}, Status: ${newStatus}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         sent: successCount,
         failed: failCount,
+        paused: dailyLimitHit,
+        total: membersList.length,
+        totalSent,
         errors: errors.length > 0 ? errors : undefined,
       }),
       {

@@ -82,15 +82,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // The generated link contains the full URL with token
-    const magicLinkUrl = linkData?.properties?.action_link;
-    if (!magicLinkUrl) {
-      console.error("No action_link in response:", linkData);
+    // Bewust NIET linkData.properties.action_link gebruiken: dat is Supabase's
+    // eigen /auth/v1/verify-URL, die de eenmalige token verbruikt op de eerste
+    // GET — en mailproviders/security-scanners "klikken" links in binnenkomende
+    // mail vaak automatisch om ze te scannen, nog vóór de gebruiker de mail
+    // opent. Resultaat: "otp_expired" bij de echte klik. In plaats daarvan
+    // sturen we de gebruiker naar onze eigen pagina met de hashed_token, die
+    // pas na een expliciete klik (geen automatische GET) verifyOtp() aanroept.
+    const tokenHash = linkData?.properties?.hashed_token;
+    if (!tokenHash) {
+      console.error("No hashed_token in response:", linkData);
       return new Response(
         JSON.stringify({ error: "Failed to generate magic link URL" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    const separator = finalRedirectTo.includes("?") ? "&" : "?";
+    const magicLinkUrl = `${finalRedirectTo}${separator}token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`;
 
     const firstName = existingMember.first_name || "";
 

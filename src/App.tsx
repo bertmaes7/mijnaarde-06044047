@@ -22,6 +22,11 @@ import Inventory from "./pages/Inventory";
 import Contributions from "./pages/Contributions";
 import Budget from "./pages/Budget";
 import Invoices from "./pages/Invoices";
+import WebshopProducts from "./pages/WebshopProducts";
+import WebshopCategories from "./pages/WebshopCategories";
+import WebshopStock from "./pages/WebshopStock";
+import WebshopOrders from "./pages/WebshopOrders";
+import WebshopSettings from "./pages/WebshopSettings";
 import OrganizationSettings from "./pages/OrganizationSettings";
 import MailingTemplates from "./pages/MailingTemplates";
 import Mailings from "./pages/Mailings";
@@ -171,6 +176,46 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <Donations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/webshop/producten"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <WebshopProducts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/webshop/categorieen"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <WebshopCategories />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/webshop/voorraad"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <WebshopStock />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/webshop/bestellingen"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <WebshopOrders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/webshop/instellingen"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <WebshopSettings />
                 </ProtectedRoute>
               }
             />

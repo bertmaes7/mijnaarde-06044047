@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, Building2, LayoutDashboard, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, FileCode, Send, Calendar, Wrench, ClipboardList, FileSpreadsheet, Calculator, Euro, Heart } from "lucide-react";
+import { Users, Building2, LayoutDashboard, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, FileCode, Send, Calendar, Wrench, ClipboardList, FileSpreadsheet, Calculator, Euro, Heart, ShoppingBag, Package, Tags, Boxes, ShoppingCart, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -29,6 +29,14 @@ const financeSubItems = [
   { href: "/finance/annual-report", label: "Jaarrekening", icon: FileSpreadsheet },
   { href: "/finance/budget", label: "Begroting", icon: Calculator },
   { href: "/finance/contributions", label: "Lidgeld", icon: Euro },
+];
+
+const webshopSubItems = [
+  { href: "/webshop/producten", label: "Producten", icon: Package },
+  { href: "/webshop/categorieen", label: "Categorieën", icon: Tags },
+  { href: "/webshop/voorraad", label: "Voorraad", icon: Boxes },
+  { href: "/webshop/bestellingen", label: "Bestellingen", icon: ShoppingCart },
+  { href: "/webshop/instellingen", label: "Instellingen", icon: Settings },
 ];
 
 const mailingSubItems = [
@@ -91,7 +99,10 @@ export function Sidebar() {
 
           {/* Finance Section */}
           <FinanceNav location={location} />
-          
+
+          {/* Webshop Section */}
+          <WebshopNav location={location} />
+
           {/* Tools Section with submenu */}
           <ToolsNav location={location} />
         </nav>
@@ -150,6 +161,55 @@ function FinanceNav({ location }: { location: ReturnType<typeof useLocation> }) 
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-1 pt-1 pl-4">
         {financeSubItems.map((item) => {
+          const isActive = location.pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              to={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent"
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function WebshopNav({ location }: { location: ReturnType<typeof useLocation> }) {
+  const isWebshopActive = location.pathname.startsWith("/webshop");
+  const [isOpen, setIsOpen] = useState(isWebshopActive);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger
+        className={cn(
+          "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          isWebshopActive
+            ? "bg-primary/10 text-primary"
+            : "text-sidebar-foreground hover:bg-sidebar-accent"
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <ShoppingBag className="h-5 w-5" />
+          Webshop
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 transition-transform duration-200",
+            isOpen && "rotate-180"
+          )}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-1 pt-1 pl-4">
+        {webshopSubItems.map((item) => {
           const isActive = location.pathname === item.href;
           return (
             <Link

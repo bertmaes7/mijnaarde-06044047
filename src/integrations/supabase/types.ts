@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       annual_report_inventory: {
@@ -301,6 +326,56 @@ export type Database = {
             foreignKeyName: "donations_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      donor_tax_info: {
+        Row: {
+          city: string | null
+          consent_given_at: string | null
+          country: string
+          created_at: string
+          house_number: string | null
+          id: string
+          member_id: string
+          national_register_number: string | null
+          postal_code: string | null
+          street: string | null
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          consent_given_at?: string | null
+          country?: string
+          created_at?: string
+          house_number?: string | null
+          id?: string
+          member_id: string
+          national_register_number?: string | null
+          postal_code?: string | null
+          street?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          consent_given_at?: string | null
+          country?: string
+          created_at?: string
+          house_number?: string | null
+          id?: string
+          member_id?: string
+          national_register_number?: string | null
+          postal_code?: string | null
+          street?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donor_tax_info_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
             referencedRelation: "members"
             referencedColumns: ["id"]
           },
@@ -1146,6 +1221,15 @@ export type Database = {
         }[]
       }
       generate_invoice_number: { Args: { p_year: number }; Returns: string }
+      get_donation_status: {
+        Args: { p_id: string }
+        Returns: {
+          amount: number
+          id: string
+          paid_at: string
+          status: string
+        }[]
+      }
       get_my_member_id: { Args: never; Returns: string }
       get_my_member_profile: {
         Args: never
@@ -1334,6 +1418,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["admin", "member"],

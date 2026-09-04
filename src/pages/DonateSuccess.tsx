@@ -24,14 +24,13 @@ export default function DonateSuccess() {
        const maxAttempts = 10;
        
        const poll = async () => {
-         const { data, error } = await supabase
-           .from("donations")
-           .select("status, amount")
-           .eq("id", donationId)
-           .single();
- 
-         if (error) {
-           console.error("Error fetching donation:", error);
+         const { data: rows, error } = await supabase.rpc("get_donation_status", {
+           p_id: donationId,
+         });
+         const data = rows?.[0];
+
+         if (error || !data) {
+           if (error) console.error("Error fetching donation:", error);
            setStatus("failed");
            return;
          }

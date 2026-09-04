@@ -1575,6 +1575,13 @@ export type Database = {
           last_name: string
         }[]
       }
+      get_shop_shipping_info: {
+        Args: never
+        Returns: {
+          free_shipping_threshold: number
+          shipping_cost: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -304,7 +304,7 @@ serve(async (req) => {
       body: JSON.stringify({
         amount: { currency: "EUR", value: total.toFixed(2) },
         description: `Bestelling ${order.order_number} — Mijn Aarde`,
-        redirectUrl: `${origin}/shop/bestelling/${order.id}`,
+        redirectUrl: `${origin}/shop?order=${order.id}`,
         webhookUrl: `${supabaseUrl}/functions/v1/shop-webhook`,
         metadata: { order_id: order.id },
       }),

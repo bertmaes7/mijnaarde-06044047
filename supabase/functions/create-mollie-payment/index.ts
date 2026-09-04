@@ -24,7 +24,33 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse request body
-    const { amount, description, email, firstName, lastName } = await req.json();
+    const {
+      amount,
+      description,
+      email,
+      firstName,
+      lastName,
+      taxInfo,
+    }: {
+      amount: number;
+      description?: string;
+      email: string;
+      firstName?: string;
+      lastName?: string;
+      // Optioneel: adres + rijksregisternummer, voorbereidend op het fiscaal
+      // attest giften (erkenning FOD Financiën is in aanvraag, kan
+      // terugwerkend gelden voor 2026). Enkel opgeslagen bij expliciete
+      // toestemming (consent) vanuit het donatieformulier.
+      taxInfo?: {
+        street?: string;
+        houseNumber?: string;
+        postalCode?: string;
+        city?: string;
+        country?: string;
+        nationalRegisterNumber?: string;
+        consent: boolean;
+      };
+    } = await req.json();
 
     // Validate required fields
     if (!email || typeof email !== "string") {
@@ -103,6 +129,34 @@ serve(async (req) => {
 
       member = newMember;
       console.log("Created new member:", member.id);
+    }
+
+    // Optioneel: adres + rijksregisternummer opslaan t.b.v. het fiscaal
+    // attest giften. Enkel bij expliciete consent, en enkel als er
+    // effectief iets is ingevuld — anders laten we het bestaande record
+    // (indien aanwezig) ongemoeid.
+    if (taxInfo?.consent) {
+      const { error: taxInfoError } = await supabase
+        .from("donor_tax_info")
+        .upsert(
+          {
+            member_id: member.id,
+            street: taxInfo.street?.trim() || null,
+            house_number: taxInfo.houseNumber?.trim() || null,
+            postal_code: taxInfo.postalCode?.trim() || null,
+            city: taxInfo.city?.trim() || null,
+            country: taxInfo.country?.trim() || "België",
+            national_register_number: taxInfo.nationalRegisterNumber?.trim() || null,
+            consent_given_at: new Date().toISOString(),
+          },
+          { onConflict: "member_id" },
+        );
+
+      if (taxInfoError) {
+        // Niet blokkerend voor de donatie zelf — dit is voorbereidend voor
+        // een attest dat pas later (na erkenning) effectief benut wordt.
+        console.error("Donor tax info upsert error:", taxInfoError);
+      }
     }
 
     // Create donation record

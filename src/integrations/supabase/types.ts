@@ -306,6 +306,56 @@ export type Database = {
           },
         ]
       }
+      donor_tax_info: {
+        Row: {
+          city: string | null
+          consent_given_at: string | null
+          country: string
+          created_at: string
+          house_number: string | null
+          id: string
+          member_id: string
+          national_register_number: string | null
+          postal_code: string | null
+          street: string | null
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          consent_given_at?: string | null
+          country?: string
+          created_at?: string
+          house_number?: string | null
+          id?: string
+          member_id: string
+          national_register_number?: string | null
+          postal_code?: string | null
+          street?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          consent_given_at?: string | null
+          country?: string
+          created_at?: string
+          house_number?: string | null
+          id?: string
+          member_id?: string
+          national_register_number?: string | null
+          postal_code?: string | null
+          street?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donor_tax_info_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       downloads: {
         Row: {
           category: string | null

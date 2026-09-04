@@ -34,6 +34,18 @@ export default function Donate() {
   const [isSavingFriend, setIsSavingFriend] = useState(false);
   const [donorInfo, setDonorInfo] = useState<DonorInfo | null>(null);
 
+  // Optioneel, voorbereidend op het fiscaal attest giften (erkenning FOD
+  // Financiën is in aanvraag, kan terugwerkend gelden voor 2026). Enkel
+  // relevant bij echte donaties, niet bij lidgeld (valt niet onder de
+  // giftenaftrek).
+  const [taxInfoOpen, setTaxInfoOpen] = useState(false);
+  const [taxInfoConsent, setTaxInfoConsent] = useState(false);
+  const [street, setStreet] = useState("");
+  const [houseNumber, setHouseNumber] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [city, setCity] = useState("");
+  const [nationalRegisterNumber, setNationalRegisterNumber] = useState("");
+
   // Pre-fill from URL params (used by contribution invite emails)
   useEffect(() => {
     const paramEmail = searchParams.get("email");
@@ -153,12 +165,24 @@ export default function Donate() {
 
     try {
       const { data, error } = await supabase.functions.invoke("create-mollie-payment", {
-        body: { 
+        body: {
           amount: numericAmount,
           description,
           email: donorInfo.email,
           firstName: donorInfo.firstName,
           lastName: donorInfo.lastName,
+          taxInfo:
+            !isContribution && taxInfoConsent
+              ? {
+                  street,
+                  houseNumber,
+                  postalCode,
+                  city,
+                  country: "België",
+                  nationalRegisterNumber,
+                  consent: true,
+                }
+              : undefined,
         },
       });
 
@@ -412,6 +436,70 @@ export default function Donate() {
                   />
                 </div>
               </div>
+
+              {!isContribution && (
+                <div className="border-t pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setTaxInfoOpen((v) => !v)}
+                    className="text-sm text-primary underline decoration-dotted underline-offset-4"
+                  >
+                    {taxInfoOpen
+                      ? "Adres/rijksregisternummer verbergen"
+                      : "Wil je later een fiscaal attest? (optioneel)"}
+                  </button>
+
+                  {taxInfoOpen && (
+                    <div className="mt-4 space-y-4 rounded-md bg-muted/50 p-4">
+                      <p className="text-xs leading-5 text-muted-foreground">
+                        Mijn Aarde vzw heeft een erkenning bij FOD Financiën
+                        aangevraagd om fiscale attesten voor giften uit te
+                        reiken. Die kan terugwerkend gelden voor giften in
+                        2026. Vul je adres en rijksregisternummer nu al in,
+                        dan hoeven we je later niet opnieuw te contacteren.
+                      </p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="col-span-2 space-y-2">
+                          <Label htmlFor="street">Straat</Label>
+                          <Input id="street" value={street} onChange={(e) => setStreet(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="houseNumber">Nr.</Label>
+                          <Input id="houseNumber" value={houseNumber} onChange={(e) => setHouseNumber(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="postalCode">Postcode</Label>
+                          <Input id="postalCode" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
+                        </div>
+                        <div className="col-span-2 space-y-2">
+                          <Label htmlFor="city">Gemeente</Label>
+                          <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
+                        </div>
+                        <div className="col-span-3 space-y-2">
+                          <Label htmlFor="rrn">Rijksregisternummer</Label>
+                          <Input
+                            id="rrn"
+                            placeholder="XX.XX.XX-XXX.XX"
+                            value={nationalRegisterNumber}
+                            onChange={(e) => setNationalRegisterNumber(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={taxInfoConsent}
+                          onChange={(e) => setTaxInfoConsent(e.target.checked)}
+                          className="mt-0.5"
+                        />
+                        Ik geef toestemming om deze gegevens te bewaren met
+                        het oog op een toekomstig fiscaal attest voor mijn
+                        gift(en).
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Donate button */}
               <Button

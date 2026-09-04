@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MAILERSEND_API_URL = "https://api.resend.com/emails";
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 interface SendInvoiceRequest {
   invoiceId: string;
@@ -22,12 +22,12 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
     const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
-    if (!mailersendApiKey) {
-      throw new Error("RESEND_API_KEY ontbreekt");
+    if (!brevoApiKey) {
+      throw new Error("BREVO_API_KEY ontbreekt");
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -183,20 +183,20 @@ serve(async (req) => {
       </html>
     `;
 
-    // Send email via Resend
-    console.log(`Sending ${type} email to ${customerEmail} for invoice ${invoice.invoice_number} via Resend`);
-    
-    const response = await fetch(MAILERSEND_API_URL, {
+    // Send email via Brevo
+    console.log(`Sending ${type} email to ${customerEmail} for invoice ${invoice.invoice_number} via Brevo`);
+
+    const response = await fetch(BREVO_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${mailersendApiKey}`,
+        "api-key": brevoApiKey,
       },
       body: JSON.stringify({
-        from: `${fromName} <${fromEmail}>`,
-        to: [customerEmail],
+        sender: { name: fromName, email: fromEmail },
+        to: [{ email: customerEmail }],
         subject,
-        html: emailHtml,
+        htmlContent: emailHtml,
       }),
     });
 
@@ -205,7 +205,7 @@ serve(async (req) => {
       throw new Error(`Email verzenden mislukt [${response.status}]: ${errorBody}`);
     }
 
-    console.log("Email sent successfully via Resend");
+    console.log("Email sent successfully via Brevo");
 
     // Update invoice status
     const updateData: Record<string, unknown> = {};

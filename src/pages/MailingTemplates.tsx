@@ -110,7 +110,7 @@ export default function MailingTemplates() {
     if (currentData === lastData) return;
     
     // Validate required fields
-    if (!formData.name || !formData.subject || (!formData.html_content && !formData.text_content)) {
+    if (!formData.name || !formData.subject || !formData.html_content || !formData.text_content) {
       return;
     }
     
@@ -471,6 +471,7 @@ export default function MailingTemplates() {
                     </TabsTrigger>
                     <TabsTrigger value="text" className="gap-2">
                       Tekst
+                      {!formData.text_content && <span className="ml-1 text-destructive">*</span>}
                     </TabsTrigger>
                     <TabsTrigger value="preview" className="gap-2">
                       <Eye className="h-4 w-4" />
@@ -507,7 +508,7 @@ export default function MailingTemplates() {
                   
                   <TabsContent value="text" className="mt-4 space-y-2">
                     <p className="text-sm text-muted-foreground">
-                      Platte tekst versie als fallback of voor eenvoudige e-mails
+                      Verplichte plain-text versie als fallback voor e-mailclients die geen HTML tonen
                     </p>
                     <Textarea
                       ref={textTextareaRef}
@@ -572,7 +573,7 @@ export default function MailingTemplates() {
             <div className="flex gap-2">
               <Button 
                 onClick={handleSave} 
-                disabled={!formData.name || !formData.subject || (!formData.html_content && !formData.text_content)}
+                disabled={!formData.name || !formData.subject || !formData.html_content || !formData.text_content}
               >
                 <Save className="h-4 w-4 mr-2" />
                 {isCreating ? "Aanmaken" : "Opslaan"}

@@ -1,4 +1,4 @@
-project_id = "ejxdsuvutluetnaiklmx"
+project_id = "imydpxahnoprqfsjseur"
 
 [functions.send-mailing]
 verify_jwt = false
@@ -30,6 +30,9 @@ verify_jwt = false
 [functions.send-magic-link]
 verify_jwt = false
 
+[functions.send-member-invite]
+verify_jwt = false
+
 [functions.odata-members]
 verify_jwt = false
 
@@ -38,4 +41,3 @@ verify_jwt = false
 
 [functions.external-api]
 verify_jwt = false
-

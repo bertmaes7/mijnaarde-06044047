@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MAILERSEND_API_URL = "https://api.resend.com/emails";
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -17,12 +17,12 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
     const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
-    if (!mailersendApiKey) {
-      throw new Error("RESEND_API_KEY ontbreekt");
+    if (!brevoApiKey) {
+      throw new Error("BREVO_API_KEY ontbreekt");
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -126,17 +126,17 @@ serve(async (req: Request) => {
     for (const admin of adminMembers) {
       if (!admin.email) continue;
       
-      await fetch(MAILERSEND_API_URL, {
+      await fetch(BREVO_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${mailersendApiKey}`,
+          "api-key": brevoApiKey,
         },
         body: JSON.stringify({
-          from: `${fromName} <${fromEmail}>`,
-          to: [admin.email],
+          sender: { name: fromName, email: fromEmail },
+          to: [{ email: admin.email }],
           subject: `🎂 ${upcomingBirthdays.length} aankomende verjaardag${upcomingBirthdays.length > 1 ? "en" : ""}`,
-          html,
+          htmlContent: html,
         }),
       });
     }

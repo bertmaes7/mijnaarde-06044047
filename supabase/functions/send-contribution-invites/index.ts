@@ -7,32 +7,30 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MAILERSEND_API_URL = "https://api.resend.com/emails";
-
-async function sendViaResend(
+async function sendViaBrevo(
   apiKey: string,
   from: { email: string; name: string },
   to: string,
   subject: string,
   html: string,
 ): Promise<void> {
-  const response = await fetch(MAILERSEND_API_URL, {
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      "api-key": apiKey,
     },
     body: JSON.stringify({
-      from: `${from.name} <${from.email}>`,
-      to: [to],
+      sender: { name: from.name, email: from.email },
+      to: [{ email: to }],
       subject,
-      html,
+      htmlContent: html,
     }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`Resend API error [${response.status}]: ${errorBody}`);
+    throw new Error(`Brevo API error [${response.status}]: ${errorBody}`);
   }
 }
 
@@ -45,11 +43,11 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
     const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
-    if (!mailersendApiKey) throw new Error("RESEND_API_KEY ontbreekt");
+    if (!brevoApiKey) throw new Error("BREVO_API_KEY ontbreekt");
 
     // Auth check
     const authHeader = req.headers.get("authorization");
@@ -121,7 +119,8 @@ serve(async (req: Request) => {
       .eq("key", "org_name")
       .maybeSingle();
 
-    const baseUrl = "https://mijnaarde.lovable.app/donate";
+    const siteUrl = Deno.env.get("SITE_URL") || "https://mijnaarde-chi.vercel.app";
+    const baseUrl = `${siteUrl}/donate`;
     const logoUrl = logoAsset?.value || "";
     const orgDisplayName = orgName?.value || "Mijn Aarde vzw";
 
@@ -158,8 +157,8 @@ serve(async (req: Request) => {
 </html>`;
 
       try {
-        await sendViaResend(
-          mailersendApiKey,
+        await sendViaBrevo(
+          brevoApiKey,
           { email: fromEmail, name: fromName },
           member.email,
           `Uitnodiging Lidgeld ${year} - ${orgDisplayName}`,

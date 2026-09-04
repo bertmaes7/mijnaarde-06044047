@@ -16,7 +16,7 @@ function getCorsHeaders(origin?: string | null): Record<string, string> {
   };
 }
 
-const MAILERSEND_API_URL = "https://api.resend.com/emails";
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 interface ResetPasswordRequest {
   memberId: string;
@@ -36,12 +36,12 @@ async function sendPasswordEmail(
   firstName: string,
   tempPassword: string
 ): Promise<void> {
-  const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
+  const brevoApiKey = Deno.env.get("BREVO_API_KEY");
   const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
   const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
-  if (!mailersendApiKey) {
-    console.error("RESEND_API_KEY not configured, skipping email");
+  if (!brevoApiKey) {
+    console.error("BREVO_API_KEY not configured, skipping email");
     return;
   }
 
@@ -60,23 +60,23 @@ async function sendPasswordEmail(
     </div>
   `;
 
-  const response = await fetch(MAILERSEND_API_URL, {
+  const response = await fetch(BREVO_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${mailersendApiKey}`,
+      "api-key": brevoApiKey,
     },
     body: JSON.stringify({
-      from: `${fromName} <${fromEmail}>`,
-      to: [email],
+      sender: { name: fromName, email: fromEmail },
+      to: [{ email }],
       subject: "Uw wachtwoord is gereset - Mijn Aarde vzw",
-      html,
+      htmlContent: html,
     }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text();
-    console.error(`Resend error [${response.status}]: ${errorBody}`);
+    console.error(`Brevo error [${response.status}]: ${errorBody}`);
   } else {
     console.log("Password reset email sent successfully to:", email);
   }

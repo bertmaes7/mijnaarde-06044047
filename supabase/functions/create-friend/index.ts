@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MAILERSEND_API_URL = "https://api.resend.com/emails";
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -103,9 +103,9 @@ Deno.serve(async (req) => {
 });
 
 async function sendThankYouEmail(supabase: any, email: string, firstName: string) {
-  const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
-  if (!mailersendApiKey) {
-    console.error("RESEND_API_KEY not configured, skipping thank you email");
+  const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+  if (!brevoApiKey) {
+    console.error("BREVO_API_KEY not configured, skipping thank you email");
     return;
   }
 
@@ -205,23 +205,23 @@ async function sendThankYouEmail(supabase: any, email: string, firstName: string
 </body>
 </html>`;
 
-  const response = await fetch(MAILERSEND_API_URL, {
+  const response = await fetch(BREVO_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${mailersendApiKey}`,
+      "api-key": brevoApiKey,
     },
     body: JSON.stringify({
-      from: `${fromName} <${fromEmail}>`,
-      to: [email],
+      sender: { name: fromName, email: fromEmail },
+      to: [{ email }],
       subject: `Welkom bij ${orgName}`,
-      html,
+      htmlContent: html,
     }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`Resend error [${response.status}]: ${errorBody}`);
+    throw new Error(`Brevo error [${response.status}]: ${errorBody}`);
   }
 
   console.log(`Thank you email sent to ${email}`);

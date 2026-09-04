@@ -34,26 +34,26 @@ async function sendPasswordEmail(
   firstName: string,
   tempPassword: string
 ): Promise<void> {
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+  const brevoApiKey = Deno.env.get("BREVO_API_KEY");
   const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "info@mijnaarde.com";
   const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
 
-  if (!resendApiKey) {
-    console.error("RESEND_API_KEY not configured, skipping email");
+  if (!brevoApiKey) {
+    console.error("BREVO_API_KEY not configured, skipping email");
     return;
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${resendApiKey}`,
+      "api-key": brevoApiKey,
     },
     body: JSON.stringify({
-      from: `${fromName} <${fromEmail}>`,
-      to: [email],
+      sender: { name: fromName, email: fromEmail },
+      to: [{ email }],
       subject: "Uw beheerdersaccount voor Mijn Aarde vzw",
-      html: `
+      htmlContent: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #2d5016;">Welkom als beheerder!</h2>
           <p>Beste ${firstName},</p>
@@ -72,7 +72,7 @@ async function sendPasswordEmail(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    console.error(`Resend error [${response.status}]: ${errorBody}`);
+    console.error(`Brevo error [${response.status}]: ${errorBody}`);
   } else {
     console.log("Password email sent successfully to:", email);
   }

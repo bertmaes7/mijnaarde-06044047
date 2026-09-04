@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MAILERSEND_API_URL = "https://api.resend.com/emails";
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -48,9 +48,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const mailersendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!mailersendApiKey) {
-      console.error("RESEND_API_KEY not configured");
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+    if (!brevoApiKey) {
+      console.error("BREVO_API_KEY not configured");
       return new Response(
         JSON.stringify({ error: "Email service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -69,7 +69,8 @@ Deno.serve(async (req) => {
     const orgName = assetMap.get("org_name") || "MIJN AARDE vzw";
     const website = assetMap.get("org_website") || "www.mijnaarde.com";
 
-    const loginUrl = "https://mijnaarde.lovable.app/auth";
+    const siteUrl = Deno.env.get("SITE_URL") || "https://mijnaarde-chi.vercel.app";
+    const loginUrl = `${siteUrl}/auth`;
 
     const visieHtml = visieText
       .split("\n")
@@ -162,23 +163,23 @@ Deno.serve(async (req) => {
 </body>
 </html>`;
 
-    const response = await fetch(MAILERSEND_API_URL, {
+    const response = await fetch(BREVO_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${mailersendApiKey}`,
+        "api-key": brevoApiKey,
       },
       body: JSON.stringify({
-        from: `${fromName} <${fromEmail}>`,
-        to: [member.email],
+        sender: { name: fromName, email: fromEmail },
+        to: [{ email: member.email }],
         subject: `Welkom als actief lid van ${orgName}`,
-        html,
+        htmlContent: html,
       }),
     });
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`Resend error [${response.status}]: ${errorBody}`);
+      console.error(`Brevo error [${response.status}]: ${errorBody}`);
       return new Response(
         JSON.stringify({ error: "Failed to send email" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

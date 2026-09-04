@@ -2,8 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 function getCorsHeaders(origin?: string | null): Record<string, string> {
   const allowedOrigins = [
-    "https://mijnaarde.lovable.app",
-    "https://id-preview--720a5d5a-c520-4ef0-9d57-c342d034b40f.lovable.app",
+    "https://mijnaarde-chi.vercel.app",
   ];
   const siteUrl = Deno.env.get("SITE_URL");
   if (siteUrl) allowedOrigins.push(siteUrl);

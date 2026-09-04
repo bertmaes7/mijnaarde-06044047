@@ -75,7 +75,7 @@ serve(async (req) => {
   const brevoApiKey = Deno.env.get("BREVO_API_KEY")!;
   const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "bert@mijnaarde.com";
   const fromName = Deno.env.get("SMTP_FROM_NAME") || "Mijn Aarde vzw";
-  const siteUrl = Deno.env.get("SITE_URL") || "https://mijnaarde.vercel.app";
+  const siteUrl = Deno.env.get("SITE_URL") || "https://mijnaarde-chi.vercel.app";
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -153,7 +153,13 @@ serve(async (req) => {
 
       const totalSent = startOffset + successCount;
       const allDone = !dailyLimitHit && totalSent >= members.length;
-      const newStatus = allDone ? "sent" : (dailyLimitHit ? "paused" : "sent");
+      // Bug: this used to fall back to "sent" whenever dailyLimitHit was
+      // false, even if the batch cap (BATCH_SIZE) was hit without Brevo
+      // ever returning an explicit daily-limit error — silently marking a
+      // mailing "sent" while most recipients never got it, with no cron
+      // left to pick up the rest (resume-mailings is the cron). Anything
+      // short of allDone must be "paused" so the next cron run continues it.
+      const newStatus = allDone ? "sent" : "paused";
 
       await supabase.from("mailings").update({
         status: newStatus,

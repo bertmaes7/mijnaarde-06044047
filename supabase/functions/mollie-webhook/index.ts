@@ -116,32 +116,31 @@
          const amount = parseFloat(payment.amount?.value || "0");
          
          if (memberId && amount > 0) {
-           // Check if income record already exists for this donation
-           const { data: existingIncome } = await supabase
+           // Idempotent insert: mollie_payment_id has a partial UNIQUE index
+           // (income_mollie_payment_id_unique). Mollie retries webhook
+           // delivery, so a plain insert (or a check-then-insert, which is
+           // itself a race condition) could double-book the same payment as
+           // two income rows — upsert + ignoreDuplicates makes a repeat call
+           // a safe no-op instead.
+           const { error: incomeError } = await supabase
              .from("income")
-             .select("id")
-             .eq("notes", `Donatie ID: ${donationId}`)
-             .single();
-           
-           if (!existingIncome) {
-             const { error: incomeError } = await supabase
-               .from("income")
-               .insert({
+             .upsert(
+               {
                  member_id: memberId,
                  amount: amount,
                  type: "donation",
                  description: "Donatie via Mollie",
                  date: paidAt ? paidAt.split("T")[0] : new Date().toISOString().split("T")[0],
                  notes: `Donatie ID: ${donationId}`,
-               });
+                 mollie_payment_id: paymentId,
+               },
+               { onConflict: "mollie_payment_id", ignoreDuplicates: true }
+             );
 
-             if (incomeError) {
-               console.error("Failed to create income record:", incomeError);
-             } else {
-               console.log("Created income record for donation", donationId);
-             }
+           if (incomeError) {
+             console.error("Failed to create income record:", incomeError);
            } else {
-             console.log("Income record already exists for donation", donationId);
+             console.log("Created (or already had) income record for donation", donationId);
            }
          }
        }

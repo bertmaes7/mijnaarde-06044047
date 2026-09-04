@@ -383,7 +383,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending to ${batch.length} recipients via Brevo (${fromEmail}), offset ${startOffset}/${membersList.length}`);
 
-    const requestOrigin = req.headers.get("origin") || "https://mijnaarde.lovable.app";
+    const requestOrigin = req.headers.get("origin") || Deno.env.get("SITE_URL") || "https://mijnaarde-chi.vercel.app";
 
     let successCount = 0;
     let failCount = 0;
@@ -458,7 +458,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     const totalSent = startOffset + successCount;
     const allDone = !dailyLimitHit && totalSent >= membersList.length;
-    const newStatus = allDone ? "sent" : (dailyLimitHit ? "paused" : (failCount === batch.length ? "failed" : "sent"));
+    // Bug: this used to fall back to "sent" whenever dailyLimitHit was
+    // false, even if the batch cap was hit without Brevo ever returning an
+    // explicit daily-limit error — silently marking a mailing "sent" while
+    // most recipients never got it. Anything short of allDone must be
+    // "paused" (resume-mailings picks it up) unless every single recipient
+    // in this batch failed outright, which is a genuine "failed" state.
+    const newStatus = allDone ? "sent" : (failCount === batch.length ? "failed" : "paused");
 
     await supabase
       .from("mailings")

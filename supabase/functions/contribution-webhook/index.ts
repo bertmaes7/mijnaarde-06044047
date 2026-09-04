@@ -64,14 +64,25 @@ serve(async (req: Request) => {
         .single();
 
       if (contribution) {
-        await supabase.from("income").insert({
-          description: `Lidgeld ${contribution.contribution_year}`,
-          amount: contribution.amount,
-          date: new Date().toISOString().split("T")[0],
-          type: "lidgeld",
-          member_id: contribution.member_id,
-          notes: `Mollie betaling: ${paymentId}`,
-        });
+        // Idempotent insert: mollie_payment_id has a partial UNIQUE index
+        // (income_mollie_payment_id_unique) — Mollie retries webhook
+        // delivery, so a plain insert here could double-book the same
+        // contribution payment as two income rows on a retry.
+        const { error: incomeError } = await supabase.from("income").upsert(
+          {
+            description: `Lidgeld ${contribution.contribution_year}`,
+            amount: contribution.amount,
+            date: new Date().toISOString().split("T")[0],
+            type: "lidgeld",
+            member_id: contribution.member_id,
+            notes: `Mollie betaling: ${paymentId}`,
+            mollie_payment_id: paymentId,
+          },
+          { onConflict: "mollie_payment_id", ignoreDuplicates: true }
+        );
+        if (incomeError) {
+          console.error("Failed to create income record:", incomeError);
+        }
       }
 
       console.log(`Contribution ${contributionId} marked as paid`);

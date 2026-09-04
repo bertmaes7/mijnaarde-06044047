@@ -6,6 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Zie dezelfde helper in create-shop-payment — voorkomt dat opgetelde
+// bedragen (bv. subtotal + shipping_cost) als 19.950000000000003 op de
+// factuur belanden.
+function round2(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -178,7 +185,7 @@ serve(async (req) => {
         invoice_date: today,
         due_date: today,
         status: "paid",
-        subtotal: order.subtotal + order.shipping_cost,
+        subtotal: round2(order.subtotal + order.shipping_cost),
         vat_rate: 21,
         vat_amount: order.vat_amount,
         total: order.total,

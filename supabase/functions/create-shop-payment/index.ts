@@ -19,6 +19,13 @@ interface ShippingAddress {
   country?: string;
 }
 
+// JS floating-point optelsommen (bv. 15 + 3.15 + 4.95) geven soms
+// 23.099999999999998 i.p.v. 23.1 — afronden vóór het wegschrijven, anders
+// staat die onzuivere waarde permanent in orders.total/invoices.total.
+function round2(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -188,7 +195,7 @@ serve(async (req) => {
       const product = productById.get(item.productId)!;
       const unitPrice = Number(product.price);
       const vatRate = Number(product.vat_rate);
-      const lineTotal = unitPrice * item.quantity;
+      const lineTotal = round2(unitPrice * item.quantity);
       return {
         product_id: product.id,
         product_name: product.name,
@@ -199,20 +206,23 @@ serve(async (req) => {
       };
     });
 
-    const subtotal = orderItemRows.reduce((sum, row) => sum + row.total, 0);
-    const vatAmount = orderItemRows.reduce((sum, row) => sum + (row.total * row.vat_rate) / 100, 0);
+    const subtotal = round2(orderItemRows.reduce((sum, row) => sum + row.total, 0));
+    const vatAmount = round2(
+      orderItemRows.reduce((sum, row) => sum + (row.total * row.vat_rate) / 100, 0)
+    );
 
     const { data: shopSettings } = await supabase
       .from("shop_settings")
       .select("shipping_cost, free_shipping_threshold")
       .single();
 
-    const shippingCost =
+    const shippingCost = round2(
       shopSettings?.free_shipping_threshold != null && subtotal >= Number(shopSettings.free_shipping_threshold)
         ? 0
-        : Number(shopSettings?.shipping_cost ?? 0);
+        : Number(shopSettings?.shipping_cost ?? 0)
+    );
 
-    const total = subtotal + vatAmount + shippingCost;
+    const total = round2(subtotal + vatAmount + shippingCost);
 
     // ── Order aanmaken (status pending), vóór de Mollie-call ─────────────
     const currentYear = new Date().getFullYear();

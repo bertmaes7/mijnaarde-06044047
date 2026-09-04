@@ -24,10 +24,10 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const claudeApiKey = Deno.env.get("CLAUDE_API_KEY");
 
-    if (!lovableApiKey) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!claudeApiKey) {
+      throw new Error("CLAUDE_API_KEY is not configured");
     }
 
     // Verify the user is an admin
@@ -184,17 +184,19 @@ Regels:
 
 ${contextData}`;
 
-    // Call Lovable AI with streaming
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Call Claude with streaming
+    const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
+        "x-api-key": claudeApiKey,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2048,
+        system: systemPrompt,
         messages: [
-          { role: "system", content: systemPrompt },
           ...conversationHistory,
           { role: "user", content: question },
         ],
@@ -209,18 +211,47 @@ ${contextData}`;
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI-tegoed is op. Voeg credits toe in de instellingen." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
-      throw new Error("AI gateway error");
+      console.error("Claude API error:", aiResponse.status, errorText);
+      throw new Error("Claude API error");
     }
 
-    return new Response(aiResponse.body, {
+    // Translate Anthropic's SSE stream into the OpenAI-style chunks the frontend parses
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    const reader = aiResponse.body!.getReader();
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let newlineIndex: number;
+          while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, newlineIndex).trim();
+            buffer = buffer.slice(newlineIndex + 1);
+            if (!line.startsWith("data: ")) continue;
+
+            try {
+              const event = JSON.parse(line.slice(6));
+              if (event.type === "content_block_delta" && event.delta?.text) {
+                const chunk = { choices: [{ delta: { content: event.delta.text } }] };
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+              }
+            } catch {
+              // ignore malformed lines
+            }
+          }
+        }
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      },
+    });
+
+    return new Response(stream, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {

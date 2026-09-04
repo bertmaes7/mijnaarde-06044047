@@ -247,8 +247,8 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* AI Data Chat - only for admins */}
-        {isAdmin && <DataChat />}
+        {/* AI Data Chat - only for admins. Tijdelijk verborgen: Anthropic account zonder credits. */}
+        {false && isAdmin && <DataChat />}
       </div>
     </MainLayout>
   );

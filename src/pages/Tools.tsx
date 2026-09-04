@@ -401,14 +401,33 @@ export default function Tools() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
+                onClick={async () => {
+                  const { data: sessionData } = await supabase.auth.getSession();
+                  const token = sessionData?.session?.access_token;
+                  if (!token) {
+                    toast.error("Je bent niet ingelogd.");
+                    return;
+                  }
                   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-csv?format=zip`;
+                  const resp = await fetch(url, {
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                    },
+                  });
+                  if (!resp.ok) {
+                    toast.error("Download mislukt.");
+                    return;
+                  }
+                  const blob = await resp.blob();
+                  const blobUrl = URL.createObjectURL(blob);
                   const a = document.createElement("a");
-                  a.href = url;
-                  a.download = "";
+                  a.href = blobUrl;
+                  a.download = `database-export-${new Date().toISOString().split("T")[0]}.zip`;
                   document.body.appendChild(a);
                   a.click();
                   document.body.removeChild(a);
+                  URL.revokeObjectURL(blobUrl);
                   toast.success("Download gestart...");
                 }}
               >

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Users, Building2, LayoutDashboard, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, FileCode, Send, Calendar, Wrench, ClipboardList, FileSpreadsheet, Calculator, Euro } from "lucide-react";
+import { Users, Building2, LayoutDashboard, Wallet, TrendingUp, TrendingDown, FileText, LogOut, Mail, FileCode, Send, Calendar, Wrench, ClipboardList, FileSpreadsheet, Calculator, Euro, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Collapsible,
@@ -22,6 +22,7 @@ const mainNavItems = [
 const financeSubItems = [
   { href: "/finance", label: "Overzicht", icon: Wallet },
   { href: "/finance/income", label: "Inkomsten", icon: TrendingUp },
+  { href: "/finance/donations", label: "Donaties", icon: Heart },
   { href: "/finance/expenses", label: "Uitgaven", icon: TrendingDown },
   { href: "/finance/invoices", label: "Uitgaande Facturen", icon: FileText },
   { href: "/finance/inventory", label: "Inventaris", icon: ClipboardList },

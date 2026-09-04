@@ -5,7 +5,7 @@
    "Access-Control-Allow-Origin": "*",
    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
  };
- 
+
  serve(async (req) => {
    // Handle CORS preflight
    if (req.method === "OPTIONS") {
@@ -129,12 +129,12 @@
                .insert({
                  member_id: memberId,
                  amount: amount,
-                 type: "donatie",
+                 type: "donation",
                  description: "Donatie via Mollie",
                  date: paidAt ? paidAt.split("T")[0] : new Date().toISOString().split("T")[0],
                  notes: `Donatie ID: ${donationId}`,
                });
-             
+
              if (incomeError) {
                console.error("Failed to create income record:", incomeError);
              } else {

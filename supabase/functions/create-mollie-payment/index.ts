@@ -128,8 +128,9 @@ serve(async (req) => {
     console.log("Created donation:", donation.id);
 
     // Get the origin for redirect URLs
-    const origin = req.headers.get("origin") || "https://mijnaarde.lovable.app";
-    
+    const siteUrl = Deno.env.get("SITE_URL") || "https://mijnaarde-chi.vercel.app";
+    const origin = req.headers.get("origin") || siteUrl;
+
     // Create Mollie payment
     const mollieResponse = await fetch("https://api.mollie.com/v2/payments", {
       method: "POST",
@@ -144,7 +145,7 @@ serve(async (req) => {
         },
         description: `Donatie - ${member.first_name} ${member.last_name}`,
         redirectUrl: `${origin}/donate/success?donation_id=${donation.id}`,
-        webhookUrl: "https://ejxdsuvutluetnaiklmx.supabase.co/functions/v1/mollie-webhook",
+        webhookUrl: `${supabaseUrl}/functions/v1/mollie-webhook`,
         metadata: {
           donation_id: donation.id,
           member_id: member.id,

@@ -10,7 +10,32 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -46,6 +71,57 @@ export type Database = {
           id?: string
           notes?: string | null
           type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      blog_posts: {
+        Row: {
+          author_name: string | null
+          body: Json
+          category: string | null
+          cover_image_url: string | null
+          created_at: string
+          created_by: string | null
+          excerpt: string | null
+          footnote: Json | null
+          id: string
+          published_at: string | null
+          slug: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_name?: string | null
+          body?: Json
+          category?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          excerpt?: string | null
+          footnote?: Json | null
+          id?: string
+          published_at?: string | null
+          slug: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string | null
+          body?: Json
+          category?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          excerpt?: string | null
+          footnote?: Json | null
+          id?: string
+          published_at?: string | null
+          slug?: string
+          status?: string
+          title?: string
           updated_at?: string
         }
         Relationships: []
@@ -196,10 +272,15 @@ export type Database = {
           created_at: string
           currency: string
           description: string | null
+          fee_amount: number | null
+          frequency: string | null
           id: string
           member_id: string | null
+          mollie_customer_id: string | null
           mollie_payment_id: string | null
           mollie_status: string | null
+          mollie_subscription_id: string | null
+          net_amount: number | null
           paid_at: string | null
           status: string
           updated_at: string
@@ -209,10 +290,15 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string | null
+          fee_amount?: number | null
+          frequency?: string | null
           id?: string
           member_id?: string | null
+          mollie_customer_id?: string | null
           mollie_payment_id?: string | null
           mollie_status?: string | null
+          mollie_subscription_id?: string | null
+          net_amount?: number | null
           paid_at?: string | null
           status?: string
           updated_at?: string
@@ -222,10 +308,15 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string | null
+          fee_amount?: number | null
+          frequency?: string | null
           id?: string
           member_id?: string | null
+          mollie_customer_id?: string | null
           mollie_payment_id?: string | null
           mollie_status?: string | null
+          mollie_subscription_id?: string | null
+          net_amount?: number | null
           paid_at?: string | null
           status?: string
           updated_at?: string
@@ -239,6 +330,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      downloads: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          doelgroep: string
+          file_size_bytes: number | null
+          file_type: string | null
+          id: string
+          is_published: boolean
+          storage_path: string
+          title: string
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          doelgroep: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          id?: string
+          is_published?: boolean
+          storage_path: string
+          title: string
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          doelgroep?: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          id?: string
+          is_published?: boolean
+          storage_path?: string
+          title?: string
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: []
       }
       event_registrations: {
         Row: {
@@ -390,6 +529,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      homepage_announcements: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          event_location: string | null
+          event_starts_at: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          link_label: string | null
+          link_url: string | null
+          starts_at: string | null
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          event_location?: string | null
+          event_starts_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          link_label?: string | null
+          link_url?: string | null
+          starts_at?: string | null
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          event_location?: string | null
+          event_starts_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          link_label?: string | null
+          link_url?: string | null
+          starts_at?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       income: {
         Row: {
@@ -671,6 +864,7 @@ export type Database = {
           selected_member_ids: string[] | null
           selection_type: string
           sent_at: string | null
+          sent_member_count: number
           status: string
           template_id: string | null
           title: string
@@ -687,6 +881,7 @@ export type Database = {
           selected_member_ids?: string[] | null
           selection_type: string
           sent_at?: string | null
+          sent_member_count?: number
           status?: string
           template_id?: string | null
           title: string
@@ -703,6 +898,7 @@ export type Database = {
           selected_member_ids?: string[] | null
           selection_type?: string
           sent_at?: string | null
+          sent_member_count?: number
           status?: string
           template_id?: string | null
           title?: string
@@ -877,6 +1073,72 @@ export type Database = {
           },
         ]
       }
+      smartchef_ai_usage: {
+        Row: {
+          count: number
+          month: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          month: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          month?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      smartchef_tier_limits: {
+        Row: {
+          display_name: string | null
+          monthly_cap: number
+          product_id: string | null
+          tier: string
+        }
+        Insert: {
+          display_name?: string | null
+          monthly_cap: number
+          product_id?: string | null
+          tier: string
+        }
+        Update: {
+          display_name?: string | null
+          monthly_cap?: number
+          product_id?: string | null
+          tier?: string
+        }
+        Relationships: []
+      }
+      smartchef_user_tiers: {
+        Row: {
+          created_at: string | null
+          receipt_validated_at: string | null
+          tier: string
+          tier_expires: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          receipt_validated_at?: string | null
+          tier?: string
+          tier_expires?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          receipt_validated_at?: string | null
+          tier?: string
+          tier_expires?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           created_at: string
@@ -957,10 +1219,45 @@ export type Database = {
         }
         Relationships: []
       }
+      smartchef_ai_status: {
+        Row: {
+          display_name: string | null
+          monthly_limit: number | null
+          remaining: number | null
+          tier: string | null
+          used_this_month: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      attach_subscription_to_donation: {
+        Args: { p_mollie_payment_id: string; p_mollie_subscription_id: string }
+        Returns: undefined
+      }
+      check_member_exists: {
+        Args: { p_email: string }
+        Returns: {
+          exists_already: boolean
+          first_name: string
+          last_name: string
+        }[]
+      }
       generate_invoice_number: { Args: { p_year: number }; Returns: string }
       get_my_member_id: { Args: never; Returns: string }
+      get_my_member_profile: {
+        Args: never
+        Returns: {
+          email: string
+          first_name: string
+          is_active: boolean
+          is_active_member: boolean
+          is_admin: boolean
+          is_ambassador: boolean
+          last_name: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -968,7 +1265,38 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_ai_usage: {
+        Args: { p_month: string; p_user_id: string }
+        Returns: undefined
+      }
+      is_current_user_admin: { Args: never; Returns: boolean }
       is_linked_to_company: { Args: { _company_id: string }; Returns: boolean }
+      record_donation: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_description?: string
+          p_email: string
+          p_first_name: string
+          p_frequency: string
+          p_last_name: string
+          p_mollie_customer_id: string
+          p_mollie_payment_id: string
+          p_status: string
+        }
+        Returns: {
+          already_processed: boolean
+        }[]
+      }
+      subscribe_to_newsletter: {
+        Args: {
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_phone?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "member"
@@ -1097,6 +1425,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["admin", "member"],

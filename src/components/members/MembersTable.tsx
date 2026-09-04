@@ -19,7 +19,7 @@ interface MembersTableProps {
   isLoading: boolean;
 }
 
-type SortField = "name" | "company" | "city" | "email" | "status" | "member_since";
+type SortField = "name" | "company" | "city" | "email" | "status" | "member_since" | "membership";
 type SortDirection = "asc" | "desc";
 
 interface SortState {
@@ -93,11 +93,21 @@ export function MembersTable({ members, isLoading }: MembersTableProps) {
           comparison = (a.email || "").localeCompare(b.email || "");
           break;
         case "status":
-          comparison = (a.is_active ? 1 : 0) - (b.is_active ? 1 : 0);
+          comparison = (a.receives_mail ? 1 : 0) - (b.receives_mail ? 1 : 0);
           break;
         case "member_since":
           comparison = (a.member_since || "").localeCompare(b.member_since || "");
           break;
+        case "membership": {
+          const rank = (m: Member) =>
+            m.is_board_member ? 5 :
+            m.is_ambassador ? 4 :
+            m.is_council_member ? 3 :
+            m.is_donor ? 2 :
+            m.is_active_member ? 1 : 0;
+          comparison = rank(a) - rank(b);
+          break;
+        }
       }
       
       return sort.direction === "asc" ? comparison : -comparison;
@@ -142,16 +152,24 @@ export function MembersTable({ members, isLoading }: MembersTableProps) {
                 Stad
               </SortableHeader>
             </TableHead>
-            <TableHead>Contact</TableHead>
+            <TableHead>
+              <SortableHeader field="email" currentSort={sort} onSort={handleSort}>
+                Contact
+              </SortableHeader>
+            </TableHead>
             <TableHead>
               <SortableHeader field="member_since" currentSort={sort} onSort={handleSort}>
                 Lid sinds
               </SortableHeader>
             </TableHead>
-            <TableHead>Lidmaatschap</TableHead>
+            <TableHead>
+              <SortableHeader field="membership" currentSort={sort} onSort={handleSort}>
+                Lidmaatschap
+              </SortableHeader>
+            </TableHead>
             <TableHead>
               <SortableHeader field="status" currentSort={sort} onSort={handleSort}>
-                Status
+                Mail
               </SortableHeader>
             </TableHead>
             <TableHead className="w-[80px]">Acties</TableHead>
@@ -256,8 +274,8 @@ export function MembersTable({ members, isLoading }: MembersTableProps) {
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant={member.is_active ? "default" : "secondary"}>
-                  {member.is_active ? "Actief" : "Inactief"}
+                <Badge variant={member.receives_mail ? "default" : "secondary"}>
+                  {member.receives_mail ? "Ja" : "Nee"}
                 </Badge>
               </TableCell>
               <TableCell>

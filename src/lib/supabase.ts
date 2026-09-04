@@ -91,6 +91,23 @@ export type Income = {
   company?: { id: string; name: string } | null;
 };
 
+export type Donation = {
+  id: string;
+  member_id: string | null;
+  amount: number;
+  currency: string;
+  status: string;
+  mollie_payment_id: string | null;
+  mollie_status: string | null;
+  description: string | null;
+  fee_amount: number | null;
+  net_amount: number | null;
+  created_at: string;
+  updated_at: string;
+  paid_at: string | null;
+  member?: { id: string; first_name: string; last_name: string; email: string | null } | null;
+};
+
 export type AppRole = 'admin' | 'member';
 
 export type UserRole = {

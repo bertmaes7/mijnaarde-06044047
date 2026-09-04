@@ -15,6 +15,7 @@ import Companies from "./pages/Companies";
 import CompanyDetail from "./pages/CompanyDetail";
 import Finance from "./pages/Finance";
 import Income from "./pages/Income";
+import Donations from "./pages/Donations";
 import Expenses from "./pages/Expenses";
 import AnnualReport from "./pages/AnnualReport";
 import Inventory from "./pages/Inventory";
@@ -162,6 +163,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <Contributions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/finance/donations"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <Donations />
                 </ProtectedRoute>
               }
             />

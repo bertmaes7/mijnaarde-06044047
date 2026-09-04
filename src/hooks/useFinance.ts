@@ -1,6 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase, Income, Expense } from "@/lib/supabase";
+import { supabase, Income, Expense, Donation } from "@/lib/supabase";
 import { toast } from "sonner";
+
+// Donation hooks (read-only: donations come in via Mollie, not admin-entered)
+export function useDonations() {
+  return useQuery({
+    queryKey: ["donations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("donations")
+        .select(`
+          *,
+          member:members(id, first_name, last_name, email)
+        `)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Donation[];
+    },
+  });
+}
 
 // Income hooks
 export function useIncome() {

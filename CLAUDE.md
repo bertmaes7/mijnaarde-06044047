@@ -44,3 +44,7 @@ Admin (require admin role): `/`, `/members`, `/companies`, `/finance/*`, `/maili
 
 ## GitHub
 `https://github.com/bertmaes7/mijnaarde-06044047`
+
+## Deploy preferences
+- Always deploy to **production** (`vercel --prod --yes`) without asking for confirmation.
+- Run deploys from `/Users/bertmaes/Projects/mijnaarde` (has `.vercel/project.json` linked to `bert-maes-projects/mijnaarde`).

@@ -86,7 +86,7 @@ serve(async (req: Request) => {
 
     // Create Mollie payment
     const webhookUrl = `${supabaseUrl}/functions/v1/contribution-webhook`;
-    const redirectUrl = `${req.headers.get("origin") || "https://mijnaarde.lovable.app"}/member?contribution=success`;
+    const redirectUrl = `${req.headers.get("origin") || Deno.env.get("SITE_URL") || "https://mijnaarde-chi.vercel.app"}/member?contribution=success`;
 
     const mollieResponse = await fetch("https://api.mollie.com/v2/payments", {
       method: "POST",

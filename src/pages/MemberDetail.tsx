@@ -27,12 +27,22 @@ import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { ArrowLeft, Trash2, Save } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+
+interface PendingInvite {
+  memberId: string;
+  email: string;
+  firstName: string;
+  navigateAfter: boolean;
+}
 
 export default function MemberDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = id === "new";
   const [isDirty, setIsDirty] = useState(false);
+  const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
 
   const { data: member, isLoading } = useMember(isNew ? undefined : id);
   const updateMember = useUpdateMember();
@@ -50,12 +60,25 @@ export default function MemberDetail() {
     if (isNew) {
       const result = await createMember.mutateAsync(data);
       setIsDirty(false);
-      navigate(`/members/${result.id}`);
+
+      const grantsPortalAccess = (data.is_active_member || data.is_ambassador) && !!result.email;
+      if (grantsPortalAccess) {
+        setPendingInvite({
+          memberId: result.id,
+          email: result.email,
+          firstName: result.first_name ?? "",
+          navigateAfter: true,
+        });
+      } else {
+        navigate(`/members/${result.id}`);
+      }
     } else if (id) {
-      // Detect if is_active_member changed to true
+      // Detect if is_active_member / is_ambassador changed to true
       const wasActiveMember = member?.is_active_member ?? false;
       const isNowActiveMember = data.is_active_member ?? false;
-      
+      const wasAmbassador = member?.is_ambassador ?? false;
+      const isNowAmbassador = data.is_ambassador ?? false;
+
       await updateMember.mutateAsync({ id, data });
       setIsDirty(false);
 
@@ -69,6 +92,44 @@ export default function MemberDetail() {
           console.error("Failed to send onboarding email:", err);
         }
       }
+
+      const justGrantedPortalAccess =
+        (!wasActiveMember && isNowActiveMember) || (!wasAmbassador && isNowAmbassador);
+      const email = data.email ?? member?.email;
+      if (justGrantedPortalAccess && email) {
+        setPendingInvite({
+          memberId: id,
+          email,
+          firstName: data.first_name ?? member?.first_name ?? "",
+          navigateAfter: false,
+        });
+      }
+    }
+  };
+
+  const handleInviteDialogChange = (open: boolean) => {
+    if (!open && pendingInvite) {
+      const { navigateAfter, memberId } = pendingInvite;
+      setPendingInvite(null);
+      if (navigateAfter) navigate(`/members/${memberId}`);
+    }
+  };
+
+  const handleSendInvite = async () => {
+    if (!pendingInvite) return;
+    const { memberId, email } = pendingInvite;
+    setIsSendingInvite(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-member-invite", {
+        body: { memberId },
+      });
+      if (error) throw error;
+      toast.success(`Uitnodiging verstuurd naar ${email}`);
+    } catch (err) {
+      console.error("Failed to send member invite:", err);
+      toast.error("Uitnodiging versturen is mislukt");
+    } finally {
+      setIsSendingInvite(false);
     }
   };
 
@@ -174,6 +235,25 @@ export default function MemberDetail() {
           <MemberTransactions memberId={id} />
         )}
       </div>
+
+      <AlertDialog open={!!pendingInvite} onOpenChange={handleInviteDialogChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Uitnodigingsmail versturen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingInvite?.firstName || "Dit lid"} heeft nu toegang tot het ledenportaal. Wil je
+              een uitnodigingsmail sturen naar {pendingInvite?.email} waarmee{" "}
+              {pendingInvite?.firstName || "het lid"} kan inloggen en zelf een wachtwoord kan kiezen?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Niet nu</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSendInvite} disabled={isSendingInvite}>
+              {isSendingInvite ? "Versturen..." : "Versturen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }

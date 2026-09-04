@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       annual_report_inventory: {
@@ -593,6 +568,7 @@ export type Database = {
           description: string
           id: string
           member_id: string | null
+          mollie_payment_id: string | null
           notes: string | null
           type: string
           updated_at: string | null
@@ -605,6 +581,7 @@ export type Database = {
           description: string
           id?: string
           member_id?: string | null
+          mollie_payment_id?: string | null
           notes?: string | null
           type: string
           updated_at?: string | null
@@ -617,6 +594,7 @@ export type Database = {
           description?: string
           id?: string
           member_id?: string | null
+          mollie_payment_id?: string | null
           notes?: string | null
           type?: string
           updated_at?: string | null
@@ -1073,72 +1051,6 @@ export type Database = {
           },
         ]
       }
-      smartchef_ai_usage: {
-        Row: {
-          count: number
-          month: string
-          user_id: string
-        }
-        Insert: {
-          count?: number
-          month: string
-          user_id: string
-        }
-        Update: {
-          count?: number
-          month?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      smartchef_tier_limits: {
-        Row: {
-          display_name: string | null
-          monthly_cap: number
-          product_id: string | null
-          tier: string
-        }
-        Insert: {
-          display_name?: string | null
-          monthly_cap: number
-          product_id?: string | null
-          tier: string
-        }
-        Update: {
-          display_name?: string | null
-          monthly_cap?: number
-          product_id?: string | null
-          tier?: string
-        }
-        Relationships: []
-      }
-      smartchef_user_tiers: {
-        Row: {
-          created_at: string | null
-          receipt_validated_at: string | null
-          tier: string
-          tier_expires: string | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          receipt_validated_at?: string | null
-          tier?: string
-          tier_expires?: string | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          receipt_validated_at?: string | null
-          tier?: string
-          tier_expires?: string | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       tags: {
         Row: {
           created_at: string
@@ -1219,17 +1131,6 @@ export type Database = {
         }
         Relationships: []
       }
-      smartchef_ai_status: {
-        Row: {
-          display_name: string | null
-          monthly_limit: number | null
-          remaining: number | null
-          tier: string | null
-          used_this_month: number | null
-          user_id: string | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
       attach_subscription_to_donation: {
@@ -1288,6 +1189,14 @@ export type Database = {
           already_processed: boolean
         }[]
       }
+      record_donation_fee: {
+        Args: {
+          p_fee_amount: number
+          p_mollie_payment_id: string
+          p_net_amount: number
+        }
+        Returns: undefined
+      }
       subscribe_to_newsletter: {
         Args: {
           p_email: string
@@ -1315,12 +1224,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1344,11 +1253,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1369,11 +1278,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1394,11 +1303,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1411,11 +1320,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1425,9 +1334,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: ["admin", "member"],

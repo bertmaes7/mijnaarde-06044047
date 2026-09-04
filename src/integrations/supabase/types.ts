@@ -1546,9 +1546,13 @@ export type Database = {
       check_member_exists: {
         Args: { p_email: string }
         Returns: {
+          address: string
+          city: string
+          country: string
           exists_already: boolean
           first_name: string
           last_name: string
+          postal_code: string
         }[]
       }
       generate_invoice_number: { Args: { p_year: number }; Returns: string }

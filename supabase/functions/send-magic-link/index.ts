@@ -26,6 +26,25 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Alleen bestaande leden/ambassadeurs mogen inloggen — nooit een account
+    // aanmaken vanuit dit publieke formulier. Geef bij een onbekend e-mailadres
+    // dezelfde { success: true } terug als bij een echte verzending (geen
+    // Brevo-call, geen link gegenereerd), zodat dit endpoint niet verklapt
+    // welke e-mailadressen wel/niet geregistreerd zijn.
+    const { data: existingMember } = await supabase
+      .from("members")
+      .select("id, first_name")
+      .ilike("email", email.trim())
+      .maybeSingle();
+
+    if (!existingMember) {
+      console.log(`send-magic-link: onbekend e-mailadres, geen link verstuurd (${email})`);
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (!brevoApiKey) {
       console.error("BREVO_API_KEY not configured");
@@ -73,14 +92,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch member name for personalization
-    const { data: member } = await supabase
-      .from("members")
-      .select("first_name")
-      .ilike("email", email.trim())
-      .maybeSingle();
-
-    const firstName = member?.first_name || "";
+    const firstName = existingMember.first_name || "";
 
     // Fetch branding assets
     const { data: assets } = await supabase

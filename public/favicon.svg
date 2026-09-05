@@ -1,8 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <!-- trunk -->
-  <rect x="13" y="22" width="6" height="8" rx="1" fill="#6B3A1F"/>
-  <!-- canopy layers -->
-  <polygon points="16,2 26,14 6,14" fill="#8B5E3C"/>
-  <polygon points="16,8 27,20 5,20" fill="#7A4E2D"/>
-  <polygon points="16,14 26,24 6,24" fill="#6B3A1F"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><clipPath id="c"><circle cx="32" cy="32" r="31"/></clipPath></defs>
+  <g clip-path="url(#c)">
+    <rect width="64" height="64" fill="#f2ecdd"/>
+    <rect y="42" width="64" height="22" fill="#3f4d39"/>
+  </g>
+  <circle cx="32" cy="32" r="31" fill="none" stroke="#201d19" stroke-width="2"/>
+  <g stroke="#201d19" stroke-width="3" stroke-linecap="round" fill="none">
+    <path d="M32 50 L32 26"/>
+    <path d="M32 38 L22 28"/>
+    <path d="M32 38 L42 28"/>
+    <path d="M32 30 L26 22"/>
+    <path d="M32 30 L38 22"/>
+  </g>
+  <g fill="#576a4f">
+    <ellipse cx="32" cy="20" rx="7" ry="5"/>
+    <ellipse cx="21" cy="26" rx="6.5" ry="4.5" transform="rotate(-28 21 26)"/>
+    <ellipse cx="43" cy="26" rx="6.5" ry="4.5" transform="rotate(28 43 26)"/>
+    <ellipse cx="17" cy="35" rx="5.5" ry="4" transform="rotate(-10 17 35)"/>
+    <ellipse cx="47" cy="35" rx="5.5" ry="4" transform="rotate(10 47 35)"/>
+  </g>
 </svg>
